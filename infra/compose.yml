@@ -1,0 +1,133 @@
+# Shtab — фундамент: Traefik, PostgreSQL, Redis, Authentik.
+#
+# Локально (адреса *.localhost браузер резолвит сам в 127.0.0.1):
+#   http://auth.shtab.localhost      — Authentik (вход, админка: /if/admin/)
+#   http://traefik.shtab.localhost   — панель Traefik
+#
+# Запуск: см. infra/README.md
+
+name: shtab
+
+x-authentik: &authentik
+  image: ghcr.io/goauthentik/server:${AUTHENTIK_TAG:-2026.8.3}
+  restart: unless-stopped
+  shm_size: 512mb
+  env_file: .env
+  environment:
+    AUTHENTIK_POSTGRESQL__HOST: postgres
+    AUTHENTIK_POSTGRESQL__NAME: authentik
+    AUTHENTIK_POSTGRESQL__USER: authentik
+    AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_DB_PASSWORD:?нужен в .env}
+    AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:?нужен в .env}
+    AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+    AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
+    AUTHENTIK_DISABLE_STARTUP_ANALYTICS: "true"
+  volumes:
+    - authentik-data:/data
+    - ./authentik/blueprints:/blueprints/shtab:ro
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  traefik:
+    image: traefik:v3
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=shtab
+      - --entrypoints.web.address=:80
+      - --api.dashboard=true
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.traefik.rule=Host(`traefik.${SHTAB_DOMAIN}`)
+      - traefik.http.routers.traefik.service=api@internal
+    networks:
+      default:
+        # Внутри Docker *.localhost указывает на сам контейнер. Псевдонимы ведут эти
+        # имена на Traefik — ядро ходит в Authentik по тому же адресу, что и браузер.
+        aliases:
+          - ${SHTAB_DOMAIN}
+          - auth.${SHTAB_DOMAIN}
+
+  # Один PostgreSQL на всё: отдельная БД и пользователь для Authentik, ядра и каждого плагина.
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?нужен в .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init-databases.sh:/docker-entrypoint-initdb.d/10-databases.sh:ro
+    ports:
+      - "127.0.0.1:5432:5432"  # только для локальной разработки
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    ports:
+      - "127.0.0.1:6379:6379"  # только для локальной разработки
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+
+  authentik-server:
+    <<: *authentik
+    command: server
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.authentik.rule=Host(`auth.${SHTAB_DOMAIN}`)
+      - traefik.http.services.authentik.loadbalancer.server.port=9000
+
+  authentik-worker:
+    <<: *authentik
+    command: worker
+    # Docker-сокет worker'у понадобится позже — для отдельных outpost'ов (forward-auth).
+
+  # --- Ядро Shtab -------------------------------------------------------------
+  core:
+    build:
+      context: ..
+      dockerfile: services/core/Dockerfile
+    restart: unless-stopped
+    environment:
+      SHTAB_DATABASE_URL: postgresql+asyncpg://shtab:${SHTAB_DB_PASSWORD}@postgres:5432/shtab
+      SHTAB_REDIS_URL: redis://redis:6379/0
+      SHTAB_PUBLIC_URL: ${SHTAB_PUBLIC_URL}
+      SHTAB_AUTH_URL: ${SHTAB_AUTH_URL}
+      SHTAB_OIDC_CLIENT_ID: ${SHTAB_OIDC_CLIENT_ID}
+      SHTAB_OIDC_CLIENT_SECRET: ${SHTAB_OIDC_CLIENT_SECRET}
+      SHTAB_SECRET_KEY: ${SHTAB_SECRET_KEY:?нужен в .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.core.rule=Host(`${SHTAB_DOMAIN}`) && PathPrefix(`/api`)
+      - traefik.http.services.core.loadbalancer.server.port=8000
+
+networks:
+  default:
+    name: shtab
+
+volumes:
+  postgres-data:
+  redis-data:
+  authentik-data:

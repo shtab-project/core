@@ -1,0 +1,14 @@
+# Режим разработки. Подхватывается автоматически, если запускать из папки infra/
+# без -f:  docker compose up -d
+# На сервере используем только compose.yml (без этого файла).
+services:
+  core:
+    volumes:
+      - ../services/core:/app/services/core
+    environment:
+      # Изменения файлов из Windows в контейнер доходят только через опрос
+      WATCHFILES_FORCE_POLLING: "true"
+    command: >
+      sh -c "alembic upgrade head &&
+      exec uvicorn shtab_core.main:app --host 0.0.0.0 --port 8000
+      --reload --reload-dir src --proxy-headers --forwarded-allow-ips='*'"
