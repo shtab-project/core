@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, String, func, text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from shtab_core.db import Base
@@ -34,3 +34,19 @@ class User(Base):
     is_trusted: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Project(Base):
+    """Пользователи состоят в проектах, админ может создавать проекты, и добавлять учатсников. """
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(String(200)) # Описание 
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class UsersXProjects(Base):
+    """Many to Many таблица"""
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('User.id'))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('Project.id'))

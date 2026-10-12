@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api/setup", tags=["setup"])
 @router.get("", response_model=SetupStatus, summary="Настроен ли Shtab")
 async def get_status(session: DbSession):
     org = await session.get(Organization, 1)
-    return SetupStatus(initialized=org is not None, organization=org)
+    return SetupStatus(initialized=org is not None, organization=org) # 
 
 
 @router.post(
