@@ -14,8 +14,6 @@ from redis.asyncio import Redis
 
 from shtab_core.config import settings
 
-COOKIE = "shtab_session"
-
 redis = Redis.from_url(settings.redis_url, decode_responses=True)
 
 
@@ -35,7 +33,7 @@ class SessionStore:
 
     async def get(self, session_id: str) -> uuid.UUID | None:
         value = await self.client.get(_key(session_id))
-        return uuid.UUID(value) if value else None
+        return uuid.UUID(value) if value else None # type:ignore[reportArgumentType]
 
     async def delete(self, session_id: str) -> None:
         await self.client.delete(_key(session_id))

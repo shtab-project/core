@@ -16,8 +16,10 @@ class Settings(BaseSettings):
     oidc_client_secret: str = ""
 
     # Подпись служебной cookie входа (state/nonce OIDC)
-    secret_key: str
+    secret_key: str = "my-secret-key"
     session_ttl_seconds: int = 7 * 24 * 3600
+    # plugins: list[]
+
 
     @property
     def oidc_issuer(self) -> str:
@@ -28,4 +30,4 @@ class Settings(BaseSettings):
         return self.public_url.startswith("https://")
 
 
-settings = Settings()
+settings = Settings() # type: ignore

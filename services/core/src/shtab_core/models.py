@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, func, text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, UniqueConstraint, func, text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from uuid6 import uuid7
 
 from shtab_core.db import Base
 
@@ -23,7 +26,7 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     # sub из OIDC — постоянный id пользователя в Authentik
     oidc_sub: Mapped[str] = mapped_column(String(255), unique=True)
     username: Mapped[str] = mapped_column(String(150))
@@ -35,18 +38,46 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    projects: Mapped[list[Project]] = relationship(
+        secondary="users_projects",
+        back_populates="users",
+        lazy="raise",
+        passive_deletes=True,
+    )
+
 
 class Project(Base):
-    """Пользователи состоят в проектах, админ может создавать проекты, и добавлять учатсников. """
+    """Проект, в который администратор добавляет участников."""
 
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    __tablename__ = "projects"
+    __mapper_args__ = {"eager_defaults": True}
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     name: Mapped[str] = mapped_column(String(200))
-    description: Mapped[str] = mapped_column(String(200)) # Описание 
+    description: Mapped[str] = mapped_column(String(200), default="", server_default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    users: Mapped[list[User]] = relationship(
+        secondary="users_projects",
+        back_populates="projects",
+        lazy="raise",
+        passive_deletes=True,
+    )
 
 
 class UsersXProjects(Base):
-    """Many to Many таблица"""
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('User.id'))
-    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('Project.id'))
+    """Участие пользователя в проекте; одна запись на пару пользователь–проект."""
+
+    __tablename__ = "users_projects"
+    __table_args__ = (
+        UniqueConstraint("user_id", "project_id", name="uq_users_projects_user_project"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )

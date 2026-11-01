@@ -57,7 +57,7 @@ def migrated_db():
 @pytest.fixture(autouse=True)
 async def clean_state(migrated_db):
     async with engine.begin() as conn:
-        await conn.execute(text("TRUNCATE users, organization"))
+        await conn.execute(text("TRUNCATE users_projects, projects, users, organization"))
     await redis.flushdb()
     yield
 

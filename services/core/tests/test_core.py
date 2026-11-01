@@ -1,4 +1,5 @@
-from shtab_core.routers.auth import DEFAULT_NEXT, safe_next
+from shtab_core.constants import DEFAULT_NEXT
+from shtab_core.routers.auth import safe_next
 
 
 def test_safe_next_blocks_open_redirect():
