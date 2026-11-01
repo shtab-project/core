@@ -5,16 +5,13 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 
 from shtab_core.config import settings
-from shtab_core.db import DbSession
+from shtab_core.constants import COOKIE, DEFAULT_NEXT
+from shtab_core.dependencies import Auth
 from shtab_core.oidc import Oidc
 from shtab_core.schemas import LogoutOut
-from shtab_core.sessions import COOKIE, Sessions
-from shtab_core.users import upsert_from_claims
+from shtab_core.sessions import Sessions
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-
-# Пока нет веб-интерфейса (шаг 3), после входа отправляем в Swagger.
-DEFAULT_NEXT = "/api/docs"
 
 
 def safe_next(value: str | None) -> str:
@@ -36,13 +33,13 @@ async def login(request: Request, oidc: Oidc, next: str | None = None):
 
 
 @router.get("/callback", summary="Возврат из Authentik", include_in_schema=False)
-async def callback(request: Request, session: DbSession, sessions: Sessions, oidc: Oidc):
+async def callback(request: Request, sessions: Sessions, oidc: Oidc, auth: Auth):
     try:
         token = await oidc.authorize_access_token(request)
     except OAuthError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Вход не удался: {e.error}") from None
 
-    user = await upsert_from_claims(session, token.get("userinfo") or {})
+    user = await auth.upsert_from_claims(token.get("userinfo") or {})
     session_id = await sessions.create(user.id)
 
     response = RedirectResponse(

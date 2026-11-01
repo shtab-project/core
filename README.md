@@ -1,91 +1,86 @@
 # Shtab
 
-Рабочий штаб: одно ядро, вокруг которого собраны заметки, задачи, канбан
-и любые другие сервисы-плагины. ИИ-помощник (ChatGPT / Claude) подключается
-через MCP и работает с задачами так же, как ты.
+Своя рабочая экосистема организации на своём сервере. **Ядро** хранит организацию,
+аккаунты, проекты и маркет плагинов. Всё остальное — **плагины**, которые ставятся
+из маркета: задачи, заметки, позже мессенджер, мониторинг и интеграции.
+ИИ-помощник (ChatGPT / Claude) работает с системой через MCP.
+
+Подробно об архитектуре и принятых решениях — в [docs/PLAN.md](docs/PLAN.md).
 
 ```
-             Телефон / браузер / ChatGPT / Claude
-                            │
-                 Traefik  (+ Authentik — этап 2)
-       ┌──────────────┬─────┴───────┬──────────────────┐
-   core (FastAPI)  worker       watcher         SilverBullet ×N
-   REST + MCP      (taskiq)     (следит за .md)  shared + личные
-       └──────── PostgreSQL · Redis · data/notes/*.md ─┘
+              Браузер / телефон / ChatGPT / Claude
+                              │
+                Traefik + Authentik (вход, OIDC)
+                              │
+ ┌─────────────────────────── ЯДРО ───────────────────────────┐
+ │ Организация · Пользователи и роли · Проекты · Маркет · MCP │
+ └────────┬────────────────────────────────────────▲──────────┘
+  вебхуки │                                REST API │
+          ▼                                         │
+     📋 Задачи        📝 Заметки        … другие плагины (у каждого своя БД)
 ```
 
-## Главная идея: Markdown — источник истины
+## Состояние
 
-Задачи живут в обычных `.md`-файлах в синтаксисе SilverBullet:
-
-```markdown
-- [ ] Сверить смету #гидро [status: doing] [due: 2026-10-10]
-```
-
-- **SilverBullet** редактирует файлы как заметки.
-- **Ядро** индексирует их в Postgres и показывает канбаном. Перетащил карточку —
-  в файле поменялся `[status: …]`.
-- **watcher** замечает правки из SilverBullet и ставит переиндексацию.
-- **Пространства:** `data/notes/shared/` — общие (видят все), `data/notes/users/<логин>/` — личные.
-
-Колонки канбана: `todo → doing → review → done`.
+| Шаг | Что | |
+|---|---|---|
+| 1 | Локальный фундамент: Traefik, PostgreSQL, Redis, Authentik (настройка blueprint'ом) | ✅ |
+| 2 | Ядро: вход через Authentik (OIDC + PKCE), мастер первого запуска, пользователи и роли | ✅ |
+| 3 | Веб-интерфейс ядра (Vite + React) | |
+| — | Проекты, контракт плагина, плагин «Задачи», MCP-шлюз, заметки, маркет | |
 
 ## Структура
 
 ```
-core/      ядро: FastAPI, SQLAlchemy, Alembic, taskiq, MCP
-web/       веб-интерфейс (ещё не начат)
-plugins/   плагины: plugin.yaml + docker-compose.yml
+infra/            Docker Compose, Authentik blueprint, генератор секретов
+services/core/    ядро: FastAPI, SQLAlchemy, Alembic
+web/              фронт ядра (ещё не начат)
+docs/             план
 ```
 
-## Запуск в Docker
+Python-сервисы — один uv-workspace с общим `uv.lock` (корневой `pyproject.toml`).
+Плагины пока будут жить здесь же, позже каждый уедет в свой репозиторий.
+
+## Запуск локально
+
+Нужны Docker Desktop (WSL2) и [uv](https://docs.astral.sh/uv/).
+
+Сгенерировать `infra/.env` со случайными секретами:
 
 ```bash
-cp .env.example .env
+python infra/scripts/gen_env.py
 ```
+
+Поднять фундамент и ядро:
 
 ```bash
-docker compose up -d --build
+cd infra && docker compose up -d --build
 ```
 
-- API: http://api.shtab.localhost/docs
-- Общие заметки: http://notes.shtab.localhost
-- Личные (admin): http://admin.notes.shtab.localhost
+Через минуту, когда Authentik готов:
 
-## Разработка ядра без Docker
-
-Нужны Postgres и Redis (можно поднять только их: `docker compose up -d postgres redis`).
-
-```bash
-cd core && uv sync
-```
-
-```bash
-cd core && uv run alembic upgrade head && uv run uvicorn shtab.main:app --reload
-```
-
-```bash
-cd core && uv run pytest
-```
-
-Тесты не требуют Postgres/Redis — используют SQLite в памяти и временную папку.
-
-## MCP-инструменты
-
-| Инструмент | Что делает |
+| Адрес | Что |
 |---|---|
-| `list_tasks(scope?, status?)` | задачи пользователя: личные + общие |
-| `add_task(title, scope?, due?, tags?)` | добавить во `Inbox.md` нужного пространства |
-| `move_task(task_id, status)` | переместить по канбану |
+| http://shtab.localhost/api/docs | API ядра (Swagger) |
+| http://shtab.localhost/api/auth/login | Вход в Shtab |
+| http://auth.shtab.localhost/if/admin/ | Админка Authentik (`akadmin`, пароль из `infra/.env`) |
+| http://traefik.shtab.localhost | Панель Traefik |
 
-> ⚠️ Пока без OAuth все MCP-вызовы идут от `SHTAB_DEV_USER`. Не открывать `/mcp`
-> в интернет до этапа 2.
+Первый вход: войти через `/api/auth/login`, затем в Swagger выполнить `POST /api/setup`
+с названием организации — вошедший станет администратором.
 
-## Дорожная карта
+Подробнее — [infra/README.md](infra/README.md) и [services/core/README.md](services/core/README.md).
 
-1. ✅ **Каркас:** ядро, индекс задач из Markdown, канбан-API, MCP, Docker Compose.
-2. **Вход:** Authentik, forward-auth на все маршруты, OAuth для MCP → подключение
-   к ChatGPT Plus и Claude Pro как коннектор. Отсюда же — закрытые dev-сайты.
-3. **Веб:** портал + канбан + граф, PWA для телефона.
-4. **Плагины:** установка из `plugins/*` в пару кликов, плитки в портале.
-5. **Интеграции:** мост к Bitrix24, свой мессенджер, мониторинг серверов.
+## Тесты
+
+Только на настоящем PostgreSQL и Redis (стек должен быть запущен):
+
+```bash
+cd services/core && uv run pytest
+```
+
+Сквозная проверка входа через Authentik:
+
+```bash
+cd services/core && uv run python scripts/smoke_login.py
+```
