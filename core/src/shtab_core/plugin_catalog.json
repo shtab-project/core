@@ -3,7 +3,7 @@
     "manifest": {
       "id": "todo",
       "name": "Задачи",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "url": "https://github.com/shtab-project/todo.git",
       "backend_entrypoint": "shtab_todo.main:register",
       "frontend": {
@@ -26,14 +26,14 @@
     },
     "description": "Личные и общие задачи, сроки выполнения, Kanban и список.",
     "icon": "todo",
-    "commit": "b1c27d72bfa3fba2486068998a9ea23332e43717",
+    "commit": "5da98eda1eebe93112caae4b79f0ae69ff63b539",
     "migration_module": "shtab_todo.migrate"
   },
   {
     "manifest": {
       "id": "notes",
       "name": "Заметки",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "url": "https://github.com/shtab-project/notes.git",
       "backend_entrypoint": "shtab_notes.main:register",
       "mcp_entrypoint": "shtab_notes.mcp:register_tools",
@@ -58,7 +58,7 @@
     },
     "description": "Личные и общие заметки с Markdown.",
     "icon": "note",
-    "commit": "3929e738ab5000fde6154b4885a983f7aa242045",
+    "commit": "aa36ae2df1b429cbbb429c8436d9315aee7b9f8f",
     "migration_module": "shtab_notes.migrate"
   },
   {

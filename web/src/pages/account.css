@@ -54,21 +54,21 @@
 .profile-identity h2 { margin: 0; font-size: clamp(20px, 3vw, 30px); line-height: 1.23; overflow-wrap: anywhere; }
 .profile-identity p { margin: 5px 0 0; color: var(--text-muted); overflow-wrap: anywhere; }
 .profile-roles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-.account-chip, .directory-self { display: inline-block; border-radius: 5px; background: var(--accent-soft); color: var(--accent); font-size: 12px; }
+.account-chip, .directory-self { display: inline-block; border-radius: 5px; background: var(--accent-soft); color: var(--accent); font-size: 16px; }
 .account-chip { padding: 3px 8px; }
 .profile-sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .profile-sections section { padding: 24px clamp(18px, 4vw, 36px); }
 .profile-sections section + section { border-left: 1px solid var(--border); }
-.profile-sections h3 { margin: 0 0 18px; font-size: 15px; font-weight: 650; }
+.profile-sections h3 { margin: 0 0 18px; font-size: 16px; font-weight: 650; }
 .profile-fields { display: grid; margin: 0; gap: 17px; }
-.profile-fields dt { color: var(--text-muted); font-size: 12px; }
-.profile-fields dd { margin: 4px 0 0; font-size: 14px; overflow-wrap: anywhere; }
+.profile-fields dt { color: var(--text-muted); font-size: 16px; }
+.profile-fields dd { margin: 4px 0 0; font-size: 16px; overflow-wrap: anywhere; }
 
 .directory-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; }
 .directory-search { display: flex; align-items: center; gap: 8px; width: min(100%, 350px); padding: 9px 11px; border: 1px solid var(--field-border); border-radius: 8px; background: var(--field); color: var(--text-muted); }
 .directory-search:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .directory-search input { width: 100%; min-width: 0; padding: 0; border: 0; background: transparent; color: var(--text-strong); outline: none; }
-.directory-count, .directory-activity, .directory-role > span { color: var(--text-muted); font-size: 13px; }
+.directory-count, .directory-activity, .directory-role > span { color: var(--text-muted); font-size: 16px; }
 .directory-table th, .directory-table td { padding: 13px 16px; }
 .directory-table th { background: var(--field); }
 .directory-table :is(th,td):first-child { padding-left: 20px; }
