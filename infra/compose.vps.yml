@@ -10,6 +10,7 @@ x-core: &core
     SHTAB_REDIS_URL: redis://:${REDIS_PASS:?required}@redis:6379/0
     SHTAB_PUBLIC_URL: ${SHTAB_PUBLIC_URL:?required}
     SHTAB_AUTH_URL: ${SHTAB_AUTH_URL:?required}
+    SHTAB_AUTH_INTERNAL_URL: http://server:9000
     SHTAB_SECRET_KEY: ${SHTAB_SECRET_KEY:?required}
     SHTAB_OIDC_CLIENT_SECRET: ${SHTAB_OIDC_CLIENT_SECRET:?required}
   volumes:

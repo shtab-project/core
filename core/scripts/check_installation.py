@@ -1,19 +1,21 @@
 """Check OIDC discovery through the same network path used by the backend."""
 
+import asyncio
 import json
 import time
 from urllib.error import HTTPError
 from urllib.request import urlopen
 
+import httpx2
+
 from shtab_core.config import settings
+from shtab_core.oidc import oauth
 
 
 def main():
-    discovery = settings.oidc_issuer + ".well-known/openid-configuration"
     for attempt in range(90):
         try:
-            with urlopen(discovery, timeout=5) as response:
-                metadata = json.load(response)
+            metadata = asyncio.run(oauth.authentik.load_server_metadata())
             if metadata["issuer"] != settings.oidc_issuer:
                 raise ValueError("OIDC issuer отличается от настроенного адреса")
             with urlopen("http://127.0.0.1:8000/api/health", timeout=5) as response:
@@ -28,7 +30,7 @@ def main():
                     raise ValueError(f"{plugin}: endpoint unexpectedly allows anonymous access")
             print("OK: API, OIDC и оба плагина подключены; без входа плагины недоступны")
             return
-        except (OSError, ValueError, KeyError) as error:
+        except (OSError, ValueError, KeyError, httpx2.HTTPError) as error:
             if attempt == 89:
                 raise RuntimeError(
                     "Authentik недоступен из ядра. Проверьте IP VPS и доступ к порту Authentik."

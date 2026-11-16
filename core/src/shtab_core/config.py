@@ -16,6 +16,7 @@ class Settings(BaseSettings):
 
     # OIDC-приложение «Shtab» в Authentik (создаётся blueprint'ом)
     auth_url: str = "http://auth.shtab.localhost"
+    auth_internal_url: str | None = None
     oidc_client_id: str = "shtab"
     oidc_client_secret: str = ""
 
