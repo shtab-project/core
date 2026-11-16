@@ -33,7 +33,7 @@
     "manifest": {
       "id": "notes",
       "name": "Заметки",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "url": "https://github.com/shtab-project/notes.git",
       "backend_entrypoint": "shtab_notes.main:register",
       "mcp_entrypoint": "shtab_notes.mcp:register_tools",
@@ -58,7 +58,7 @@
     },
     "description": "Личные и общие заметки с Markdown.",
     "icon": "note",
-    "commit": "d6d7d14e83b60df29ffe727d5cec3d65f899b7b4",
+    "commit": "3929e738ab5000fde6154b4885a983f7aa242045",
     "migration_module": "shtab_notes.migrate"
   },
   {
