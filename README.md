@@ -44,6 +44,8 @@ Python-сервисы — один uv-workspace с общим `uv.lock` (кор�
 
 ## Запуск локально
 
+Для VPS по IP: [установщик и инструкция](docs/VPS-INSTALL.md).
+
 Нужны Docker Desktop (WSL2) и [uv](https://docs.astral.sh/uv/).
 
 Сгенерировать `infra/.env` со случайными секретами:

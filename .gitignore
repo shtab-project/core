@@ -11,6 +11,8 @@ dist/
 !.env.example
 core/plugins/
 infra/authentik/certs/
+infra/authentik/data/
+infra/vps/
 infra/authentik/custom-templates/
 .codex/
 .claude/

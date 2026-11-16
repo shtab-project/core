@@ -1,0 +1,139 @@
+name: ${SHTAB_COMPOSE_PROJECT:-shtab-vps}
+
+x-core: &core
+  image: ${SHTAB_CORE_IMAGE:-shtab-core:vps}
+  build:
+    context: ..
+    dockerfile: core/Dockerfile
+  environment:
+    SHTAB_DATABASE_URL: postgresql+asyncpg://shtab:${SHTAB_DB_PASS:?required}@postgresql:5432/shtab
+    SHTAB_REDIS_URL: redis://:${REDIS_PASS:?required}@redis:6379/0
+    SHTAB_PUBLIC_URL: ${SHTAB_PUBLIC_URL:?required}
+    SHTAB_AUTH_URL: ${SHTAB_AUTH_URL:?required}
+    SHTAB_SECRET_KEY: ${SHTAB_SECRET_KEY:?required}
+    SHTAB_OIDC_CLIENT_SECRET: ${SHTAB_OIDC_CLIENT_SECRET:?required}
+  volumes:
+    - plugins:/app/core/plugins
+
+x-auth: &auth
+  AUTHENTIK_POSTGRESQL__HOST: postgresql
+  AUTHENTIK_POSTGRESQL__NAME: authentik
+  AUTHENTIK_POSTGRESQL__USER: authentik
+  AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS:?required}
+  AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:?required}
+  SHTAB_OIDC_CLIENT_SECRET: ${SHTAB_OIDC_CLIENT_SECRET:?required}
+
+services:
+  postgresql:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: authentik
+      POSTGRES_USER: authentik
+      POSTGRES_PASSWORD: ${PG_PASS:?required}
+      SHTAB_DB_PASS: ${SHTAB_DB_PASS:?required}
+    volumes:
+      - database:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U authentik -d authentik"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    environment:
+      REDIS_PASS: ${REDIS_PASS:?required}
+    command: [sh, -c, 'exec redis-server --requirepass "$$REDIS_PASS" --appendonly yes']
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$REDIS_PASS" redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  server:
+    image: ghcr.io/goauthentik/server:2026.8.5
+    command: server
+    environment: *auth
+    ports:
+      - "${SHTAB_BIND_ADDRESS:-0.0.0.0}:${SHTAB_AUTH_PORT:-9000}:9000"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    volumes:
+      - authentik_data:/data
+      - authentik_templates:/templates
+    shm_size: 512mb
+    restart: unless-stopped
+
+  worker:
+    image: ghcr.io/goauthentik/server:2026.8.5
+    command: worker
+    user: root
+    environment:
+      <<: *auth
+      AUTHENTIK_BOOTSTRAP_EMAIL: ${AUTHENTIK_BOOTSTRAP_EMAIL:-admin@example.invalid}
+      AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD:?required}
+      AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN:?required}
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    volumes:
+      - authentik_data:/data
+      - authentik_templates:/templates
+      - authentik_certs:/certs
+      - ./vps/blueprints:/blueprints/shtab:ro
+    shm_size: 512mb
+    restart: unless-stopped
+
+  bootstrap:
+    <<: *core
+    profiles: [tools]
+    entrypoint: [sh, -ec]
+    command:
+      - >-
+        uv sync --all-packages --no-dev &&
+        .venv/bin/alembic -c core/alembic.ini upgrade head &&
+        .venv/bin/python core/scripts/bootstrap_plugins.py
+
+  core:
+    <<: *core
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, .venv/bin/python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5)"]
+      interval: 10s
+      timeout: 6s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ../web
+    ports:
+      - "${SHTAB_BIND_ADDRESS:-0.0.0.0}:${SHTAB_WEB_PORT:-80}:80"
+    depends_on:
+      core:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD-SHELL, "wget -q -O /dev/null http://127.0.0.1/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  database:
+  redis:
+  plugins:
+  authentik_data:
+  authentik_templates:
+  authentik_certs:

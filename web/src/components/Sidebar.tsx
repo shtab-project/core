@@ -67,14 +67,21 @@ export function Sidebar({ open, onClose }: Props) {
       {organization && <p className="sidebar-org">{organization.name}</p>}
 
       <nav>
-        <SidebarLink to="/profile" icon="profile" label="Профиль" onClick={onClose} />
+        <div className="sidebar-group workspace-links">
+          <p className="sidebar-group-label">Рабочее пространство</p>
+          <PluginLinks slot="sidebar.main" onClose={onClose} />
+        </div>
+        <div className="sidebar-group">
+          <p className="sidebar-group-label">Аккаунт</p>
+          <SidebarLink to="/profile" icon="profile" label="Профиль" onClick={onClose} />
+        </div>
         {user.is_admin && (
-          <>
+          <div className="sidebar-group admin-links">
+            <p className="sidebar-group-label">Управление</p>
             <SidebarLink to="/users" icon="users" label="Пользователи" onClick={onClose} />
             <SidebarLink to="/plugins" end icon="plugin" label="Плагины" onClick={onClose} />
-          </>
+          </div>
         )}
-        <PluginLinks slot="sidebar.main" onClose={onClose} />
       </nav>
 
       <div className="sidebar-bottom">
@@ -105,7 +112,7 @@ function PluginLinks({ slot, onClose }: { slot: string; onClose: () => void }) {
 
   return <>
     {items.map((item) => <SidebarLink key={`${item.pluginId}:${item.path}`} to={item.path}
-      icon={isIconName(item.icon) ? item.icon : 'plugin'} label={item.title} onClick={onClose} />)}
+      icon={item.pluginId === 'todo' ? 'todo' : item.pluginId === 'notes' ? 'note' : isIconName(item.icon) ? item.icon : 'plugin'} label={item.title} onClick={onClose} />)}
     {slot === 'sidebar.main' && error && <button className="nav-link" type="button"
       title="Не удалось загрузить плагины. Повторить" onClick={reload}>
       <Icon name="plugin" /><span>Повторить загрузку</span>
