@@ -3,7 +3,7 @@
     "manifest": {
       "id": "todo",
       "name": "Задачи",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "url": "https://github.com/shtab-project/todo.git",
       "backend_entrypoint": "shtab_todo.main:register",
       "frontend": {
@@ -26,7 +26,7 @@
     },
     "description": "Личные и общие задачи, сроки выполнения, Kanban и список.",
     "icon": "todo",
-    "commit": "287fe4b8771f22c4b9e2f94603b7621fc71545fe",
+    "commit": "b1c27d72bfa3fba2486068998a9ea23332e43717",
     "migration_module": "shtab_todo.migrate"
   },
   {
