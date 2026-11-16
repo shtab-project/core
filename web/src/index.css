@@ -1,0 +1,151 @@
+@font-face {
+  font-family: 'JetBrains Mono Nerd';
+  src: url('./assets/fonts/jetbrains-mono-nerd-regular.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono Nerd';
+  src: url('./assets/fonts/jetbrains-mono-nerd-medium.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono Nerd';
+  src: url('./assets/fonts/jetbrains-mono-nerd-semibold.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono Nerd';
+  src: url('./assets/fonts/jetbrains-mono-nerd-bold.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono Nerd';
+  src: url('./assets/fonts/jetbrains-mono-nerd-italic.woff2') format('woff2');
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono Nerd Symbols';
+  src: url('./assets/fonts/jetbrains-mono-nerd-symbols.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+E000-F8FF, U+F0000-10FFFD;
+}
+
+:root {
+  --background: #f5f5f8;
+  --surface: #ffffff;
+  --field: #fafafd;
+  --field-border: #d6d7e0;
+  --sidebar-surface: #edecf3;
+  --border: #dedfe7;
+  --text-strong: #252631;
+  --text-muted: #6e7181;
+  --accent: #7562b9;
+  --accent-solid: #7562b9;
+  --accent-hover: #6552a5;
+  --accent-soft: #eeebf6;
+  --on-accent: #ffffff;
+  --button-border: #7562b9;
+  --tab-track: #f0f0f5;
+  --tab-active: #ffffff;
+  --danger: #ac3447;
+  --danger-solid: #ac3447;
+  --danger-soft: #fff3f4;
+  --chrome: #ffffff;
+  --success: #33644f;
+  --success-soft: #edf6f1;
+  --success-border: #cfe3d7;
+  --in-progress: #6d5b91;
+  --in-progress-border: #e5dced;
+  --warning: #845313;
+  --warning-soft: #fff8e9;
+  --warning-border: #e9c785;
+  color-scheme: light;
+
+  --font-mono: 'JetBrains Mono Nerd', 'JetBrains Mono Nerd Symbols', Consolas, monospace;
+  font-family: var(--font-mono);
+  color: var(--text-strong);
+  background: var(--background);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color .32s ease, color .25s ease;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --background: #101114;
+  --surface: #191b20;
+  --field: #14161a;
+  --field-border: #3a3c46;
+  --sidebar-surface: #202228;
+  --border: #303239;
+  --text-strong: #f1f1f4;
+  --text-muted: #a4a5b1;
+  --accent: #b4a8ef;
+  --accent-solid: #b4a8ef;
+  --accent-hover: #c6baf7;
+  --accent-soft: #292631;
+  --on-accent: #211c32;
+  --button-border: #c0b4f2;
+  --tab-track: #121418;
+  --tab-active: #2c2e36;
+  --danger: #f2a5a5;
+  --danger-soft: #322327;
+  --chrome: #191b20;
+  --success: #b6d1c4;
+  --success-soft: #242c2a;
+  --success-border: #3e514a;
+  --in-progress: #c7bddc;
+  --in-progress-border: #3a354c;
+  --warning: #e5c285;
+  --warning-soft: #382e20;
+  --warning-border: #5d4b2e;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+h1 {
+  max-width: 760px;
+  margin: 0;
+  font-size: 29px;
+  font-weight: 550;
+  line-height: 1.2;
+  letter-spacing: -.9px;
+}
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+
+input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: .75; }
+
+button,
+input {
+  font: inherit;
+}

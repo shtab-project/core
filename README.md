@@ -1,5 +1,7 @@
 # Shtab
 
+Коротко: [контракт плагина](PLUGIN_CONTRACT.md) · [ближайшие задачи](TODO.md).
+
 Своя рабочая экосистема организации на своём сервере. **Ядро** хранит организацию,
 аккаунты, проекты и маркет плагинов. Всё остальное — **плагины**, которые ставятся
 из маркета: задачи, заметки, позже мессенджер, мониторинг и интеграции.
@@ -10,7 +12,7 @@
 ```
               Браузер / телефон / ChatGPT / Claude
                               │
-                Traefik + Authentik (вход, OIDC)
+                Nginx + Authentik (вход, OIDC)
                               │
  ┌─────────────────────────── ЯДРО ───────────────────────────┐
  │ Организация · Пользователи и роли · Проекты · Маркет · MCP │
@@ -24,22 +26,21 @@
 
 | Шаг | Что | |
 |---|---|---|
-| 1 | Локальный фундамент: Traefik, PostgreSQL, Redis, Authentik (настройка blueprint'ом) | ✅ |
+| 1 | Локальный фундамент: Nginx, PostgreSQL, Redis, Authentik (настройка blueprint'ом) | ✅ |
 | 2 | Ядро: вход через Authentik (OIDC + PKCE), мастер первого запуска, пользователи и роли | ✅ |
-| 3 | Веб-интерфейс ядра (Vite + React) | |
-| — | Проекты, контракт плагина, плагин «Задачи», MCP-шлюз, заметки, маркет | |
+| 3 | Веб-интерфейс ядра, каталог GitHub-плагинов и MCP-шлюз | ✅ |
 
 ## Структура
 
 ```
 infra/            Docker Compose, Authentik blueprint, генератор секретов
-services/core/    ядро: FastAPI, SQLAlchemy, Alembic
-web/              фронт ядра (ещё не начат)
-docs/             план
+core/             ядро: FastAPI, SQLAlchemy, Alembic
+core/plugins/     установленные плагины (участники workspace)
+web/              фронт ядра (React)
 ```
 
 Python-сервисы — один uv-workspace с общим `uv.lock` (корневой `pyproject.toml`).
-Плагины пока будут жить здесь же, позже каждый уедет в свой репозиторий.
+Плагины устанавливаются из каталога Shtab. Исходники находятся в отдельных репозиториях организации [shtab-project](https://github.com/shtab-project).
 
 ## Запуск локально
 
@@ -51,36 +52,20 @@ Python-сервисы — один uv-workspace с общим `uv.lock` (кор�
 python infra/scripts/gen_env.py
 ```
 
-Поднять фундамент и ядро:
+Запустить сервисы из корня репозитория:
 
 ```bash
-cd infra && docker compose up -d --build
+docker compose -f infra/docker-compose.yml up -d --build
 ```
 
-Через минуту, когда Authentik готов:
+Откройте [Shtab](http://localhost:3000). Для первого запуска используйте учётку `akadmin` с паролем `AUTHENTIK_BOOTSTRAP_PASSWORD` из `infra/.env` и создайте организацию. Затем откройте «Плагины» в боковом меню.
 
-| Адрес | Что |
-|---|---|
-| http://shtab.localhost/api/docs | API ядра (Swagger) |
-| http://shtab.localhost/api/auth/login | Вход в Shtab |
-| http://auth.shtab.localhost/if/admin/ | Админка Authentik (`akadmin`, пароль из `infra/.env`) |
-| http://traefik.shtab.localhost | Панель Traefik |
-
-Первый вход: войти через `/api/auth/login`, затем в Swagger выполнить `POST /api/setup`
-с названием организации — вошедший станет администратором.
-
-Подробнее — [infra/README.md](infra/README.md) и [services/core/README.md](services/core/README.md).
+[Админка Authentik](http://auth.shtab.localhost:9000/if/admin/) · [Swagger](http://localhost:3000/api/docs).
 
 ## Тесты
 
-Только на настоящем PostgreSQL и Redis (стек должен быть запущен):
-
 ```bash
-cd services/core && uv run pytest
+uv run --package shtab-core pytest --confcutdir=core/tests/unit core/tests/unit
 ```
 
-Сквозная проверка входа через Authentik:
-
-```bash
-cd services/core && uv run python scripts/smoke_login.py
-```
+Для сквозной проверки входа на запущенном стеке используйте `uv run --package shtab-core python core/scripts/smoke_login.py`.

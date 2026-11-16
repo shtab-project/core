@@ -1,3 +1,5 @@
-# Корень uv-workspace: ядро и Python-плагины живут в одном репозитории с общим uv.lock.
 [tool.uv.workspace]
-members = ["services/*"]
+members = ["core", "core/plugins/*"]
+
+[tool.uv.sources]
+shtab-core = { workspace = true }

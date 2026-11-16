@@ -1,0 +1,95 @@
+[
+  {
+    "manifest": {
+      "id": "todo",
+      "name": "Задачи",
+      "version": "0.1.1",
+      "url": "https://github.com/shtab-project/todo.git",
+      "backend_entrypoint": "shtab_todo.main:register",
+      "frontend": {
+        "entry": "frontend/index.js",
+        "pages": [
+          {
+            "path": "/plugins/todo",
+            "element": "shtab-todo"
+          }
+        ],
+        "menu_items": [
+          {
+            "slot": "sidebar.main",
+            "title": "Задачи",
+            "path": "/plugins/todo",
+            "order": 20
+          }
+        ]
+      }
+    },
+    "description": "Доска Kanban и список задач.",
+    "icon": "todo",
+    "commit": "b9e22e86ac026e33c64c341e6f80ba9f4632e202",
+    "migration_module": null
+  },
+  {
+    "manifest": {
+      "id": "notes",
+      "name": "Заметки",
+      "version": "0.1.0",
+      "url": "https://github.com/shtab-project/notes.git",
+      "backend_entrypoint": "shtab_notes.main:register",
+      "mcp_entrypoint": "shtab_notes.mcp:register_tools",
+      "frontend": {
+        "entry": "frontend/index.js",
+        "pages": [
+          {
+            "path": "/plugins/notes",
+            "element": "shtab-notes"
+          }
+        ],
+        "menu_items": [
+          {
+            "slot": "sidebar.main",
+            "title": "Заметки",
+            "path": "/plugins/notes",
+            "order": 30,
+            "icon": "note"
+          }
+        ]
+      }
+    },
+    "description": "Личные и общие заметки с Markdown.",
+    "icon": "note",
+    "commit": "33f217bf026b28e67dc9ef85e0889acc1b846045",
+    "migration_module": "shtab_notes.migrate"
+  },
+  {
+    "manifest": {
+      "id": "direct-ai-control",
+      "name": "Direct AI Control",
+      "version": "0.1.0",
+      "url": "https://github.com/shtab-project/direct-ai-control.git",
+      "backend_entrypoint": "shtab_direct_ai_control.main:register",
+      "frontend": {
+        "entry": "frontend/index.js",
+        "pages": [
+          {
+            "path": "/plugins/direct-ai-control",
+            "element": "shtab-direct-ai-control"
+          }
+        ],
+        "menu_items": [
+          {
+            "slot": "sidebar.main",
+            "path": "/plugins/direct-ai-control",
+            "title": "Direct AI Control",
+            "icon": "plugin",
+            "order": 40
+          }
+        ]
+      }
+    },
+    "description": "Аналитика и управление кампаниями Яндекс Директа.",
+    "icon": "plugin",
+    "commit": "c43b7ce869201f7e7cb56c1d221604b29074e019",
+    "migration_module": null
+  }
+]

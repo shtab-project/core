@@ -1,0 +1,82 @@
+.account-heading {
+  margin-bottom: 24px;
+  font-size: clamp(28px, 4vw, 38px);
+  font-weight: 650;
+}
+
+.account-panel {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.profile-panel { max-width: 780px; }
+
+.profile-identity {
+  display: flex;
+  align-items: center;
+  gap: clamp(14px, 3vw, 28px);
+  padding: clamp(18px, 4vw, 36px);
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 84%, var(--accent-soft));
+}
+
+.profile-avatar {
+  width: clamp(52px, 9vw, 78px);
+  height: clamp(52px, 9vw, 78px);
+  border: 1px solid color-mix(in srgb, var(--accent) 33%, var(--border));
+  border-radius: 16px;
+  font-size: clamp(20px, 4vw, 29px);
+}
+
+.profile-identity > div { min-width: 0; }
+.profile-identity h2 { margin: 0; font-size: clamp(20px, 3vw, 30px); line-height: 1.23; overflow-wrap: anywhere; }
+.profile-identity p { margin: 5px 0 0; color: var(--text-muted); overflow-wrap: anywhere; }
+.profile-roles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.account-chip, .directory-self { display: inline-block; border-radius: 5px; background: var(--accent-soft); color: var(--accent); font-size: 12px; }
+.account-chip { padding: 3px 8px; }
+.profile-sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.profile-sections section { padding: 24px clamp(18px, 4vw, 36px); }
+.profile-sections section + section { border-left: 1px solid var(--border); }
+.profile-sections h3 { margin: 0 0 18px; font-size: 15px; font-weight: 650; }
+.profile-fields { display: grid; margin: 0; gap: 17px; }
+.profile-fields dt { color: var(--text-muted); font-size: 12px; }
+.profile-fields dd { margin: 4px 0 0; font-size: 14px; overflow-wrap: anywhere; }
+
+.directory-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; }
+.directory-search { display: flex; align-items: center; gap: 8px; width: min(100%, 350px); padding: 9px 11px; border: 1px solid var(--field-border); border-radius: 8px; background: var(--field); color: var(--text-muted); }
+.directory-search:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.directory-search input { width: 100%; min-width: 0; padding: 0; border: 0; background: transparent; color: var(--text-strong); outline: none; }
+.directory-count, .directory-activity, .directory-role > span { color: var(--text-muted); font-size: 13px; }
+.directory-table th, .directory-table td { padding: 13px 16px; }
+.directory-table th { background: var(--field); }
+.directory-table :is(th,td):first-child { padding-left: 20px; }
+.directory-table :is(th,td):last-child { padding-right: 20px; }
+.directory-identity { display: flex; align-items: center; gap: 10px; min-width: 0; white-space: normal; }
+.directory-identity .avatar { border-radius: 8px; }
+.directory-identity strong, .directory-identity small { overflow-wrap: anywhere; }
+.directory-self { vertical-align: 1px; margin-inline-start: 7px; padding: 1px 5px; }
+.directory-role > span, .directory-activity > span { display: none; }
+.directory-table .switch:not([aria-checked='true']) { background: var(--field-border); }
+.directory-empty, .directory-error { margin: 0; padding: 18px 20px; border-top: 1px solid var(--border); }
+.directory-empty { color: var(--text-muted); }
+.directory-empty .button { margin-top: 0; }
+.directory-error { color: var(--danger); background: var(--danger-soft); }
+
+@media (max-width: 920px) {
+  .directory-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .directory-table table, .directory-table tbody { display: block; }
+  .directory-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 12px; padding: 14px; border-top: 1px solid var(--border); }
+  .directory-table tr td { padding: 0; border: 0; }
+  .directory-person, .directory-activity { grid-column: 1 / -1; }
+  .directory-role { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .directory-role > span, .directory-activity > span { display: inline; }
+}
+
+@media (max-width: 480px) {
+  .profile-sections { grid-template-columns: 1fr; }
+  .profile-sections section + section { border-top: 1px solid var(--border); border-left: 0; }
+  .profile-identity { align-items: flex-start; }
+  .directory-tools { padding: 12px 14px; }
+}

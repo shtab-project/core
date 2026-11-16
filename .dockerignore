@@ -1,9 +1,10 @@
 **/.venv
-**/__pycache__
-**/.pytest_cache
-**/.ruff_cache
-**/*.egg-info
 **/node_modules
+**/__pycache__
+**/.git
 **/.env
-.git
-data
+**/.env.*
+**/direct-demo.db*
+reports
+web
+prototypes

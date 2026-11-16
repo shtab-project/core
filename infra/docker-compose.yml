@@ -1,0 +1,121 @@
+
+name: shtab
+services:
+  core:
+    build:
+      context: ..
+      dockerfile: core/Dockerfile
+    environment:
+      SHTAB_DATABASE_URL: postgresql+asyncpg://shtab:${SHTAB_DB_PASS}@postgresql:5432/shtab
+      SHTAB_REDIS_URL: redis://:${REDIS_PASS}@redis:6379/0
+      SHTAB_PUBLIC_URL: http://localhost:3000
+      SHTAB_AUTH_URL: http://auth.shtab.localhost:9000
+      SHTAB_SECRET_KEY: ${SHTAB_SECRET_KEY:?session secret required}
+      SHTAB_OIDC_CLIENT_SECRET: ${SHTAB_OIDC_CLIENT_SECRET:?oidc client secret required}
+    ports:
+      - "8000:8000"
+    volumes:
+      - plugins_data:/app/core/plugins
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+  web:
+    build:
+      context: ../web
+    ports:
+      - "3000:80"
+    depends_on:
+      - core
+    restart: unless-stopped
+  postgresql:
+    env_file:
+    - .env
+    environment:
+      POSTGRES_DB: ${PG_DB:-authentik}
+      POSTGRES_PASSWORD: ${PG_PASS:?database password required}
+      POSTGRES_USER: ${PG_USER:-authentik}
+      SHTAB_DB_PASS: ${SHTAB_DB_PASS:?shtab database password required}
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 20s
+      test:
+      - CMD-SHELL
+      - pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}
+      timeout: 5s
+    image: docker.io/library/postgres:16-alpine
+    restart: unless-stopped
+    volumes:
+    - database:/var/lib/postgresql/data
+    - ./init-db:/docker-entrypoint-initdb.d:ro
+  server:
+    command: server
+    networks:
+      default:
+        # Тот же адрес, что видит браузер (*.localhost → 127.0.0.1), — один issuer для всех
+        aliases:
+          - auth.shtab.localhost
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    env_file:
+    - .env
+    environment:
+      AUTHENTIK_POSTGRESQL__HOST: postgresql
+      AUTHENTIK_POSTGRESQL__NAME: ${PG_DB:-authentik}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
+      AUTHENTIK_POSTGRESQL__USER: ${PG_USER:-authentik}
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:?secret key required}
+    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2026.8.5}
+    ports:
+    - ${COMPOSE_PORT_HTTP:-9000}:9000
+    - ${COMPOSE_PORT_HTTPS:-9443}:9443
+    restart: unless-stopped
+    shm_size: 512mb
+    volumes:
+    - ./authentik/data:/data
+    - ./authentik/custom-templates:/templates
+  worker:
+    command: worker
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    env_file:
+    - .env
+    environment:
+      AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD}
+      AUTHENTIK_BOOTSTRAP_EMAIL: admin@example.com
+      AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN}   # API-токен akadmin
+      AUTHENTIK_POSTGRESQL__HOST: postgresql
+      AUTHENTIK_POSTGRESQL__NAME: ${PG_DB:-authentik}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
+      AUTHENTIK_POSTGRESQL__USER: ${PG_USER:-authentik}
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:?secret key required}
+    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2026.8.5}
+    restart: unless-stopped
+    shm_size: 512mb
+    user: root
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - ./authentik/data:/data
+    - ./authentik/certs:/certs
+    - ./authentik/custom-templates:/templates
+    - ./authentik/blueprints:/blueprints/shtab
+  redis:
+    image: redis:7.4-alpine
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASS:?redis password required} --appendonly yes
+    volumes:
+      - redis_data:/data
+
+volumes:
+  plugins_data:
+  redis_data:
+  database:
+    driver: local

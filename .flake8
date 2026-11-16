@@ -1,0 +1,19 @@
+[flake8]
+select = WPS
+# Repository/service size and dependency wiring are intentional.
+extend-ignore = WPS201,WPS202,WPS214
+extend-exclude =
+    .venv,
+    venv,
+    node_modules,
+    tests,
+    scripts,
+    migrations,
+    build,
+    dist
+
+# Empty SQLAlchemy base and exception classes intentionally use pass.
+per-file-ignores =
+    core/src/shtab_core/db.py: WPS420,WPS604
+    core/src/shtab_core/services/errors.py: WPS420,WPS604
+    core/src/shtab_core/uow.py: WPS338,WPS501,WPS505

@@ -7,3 +7,14 @@ __pycache__/
 .ruff_cache/
 node_modules/
 dist/
+.env.*
+!.env.example
+core/plugins/
+infra/authentik/certs/
+infra/authentik/custom-templates/
+.codex/
+.claude/
+reports/
+*.sqlite*
+*.db
+*.log

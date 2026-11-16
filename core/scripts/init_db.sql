@@ -1,0 +1,2 @@
+CREATE USER shtab WITH PASSWORD 'shtab';
+CREATE DATABASE shtab OWNER shtab;
