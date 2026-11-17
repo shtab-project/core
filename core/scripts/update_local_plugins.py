@@ -48,9 +48,7 @@ async def main() -> None:
                 record.name = manifest.name
                 record.version = manifest.version
                 record.backend_entrypoint = manifest.backend_entrypoint
-                record.frontend = (
-                    manifest.frontend.model_dump(mode="json") if manifest.frontend else None
-                )
+                record.frontend = manifest.model_dump(mode="json")["frontend"]
                 print(f"{plugin_id}: обновлён до {manifest.version}")
     finally:
         await engine.dispose()
