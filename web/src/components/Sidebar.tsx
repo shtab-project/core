@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink } from 'react-router'
 import { api } from '../api.ts'
 import { useMe } from '../app/session.tsx'
@@ -27,6 +27,12 @@ type Props = {
 export function Sidebar({ open, onClose }: Props) {
   const { user, organization } = useMe()
   const [collapsed, setCollapsed] = useState(readCollapsed)
+  const accountMenu = useRef<HTMLDetailsElement>(null)
+
+  function closeMenu() {
+    if (accountMenu.current) accountMenu.current.open = false
+    onClose()
+  }
 
   useEffect(() => {
     try {
@@ -37,7 +43,16 @@ export function Sidebar({ open, onClose }: Props) {
   }, [collapsed])
 
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      const menu = accountMenu.current
+      if (menu?.open) {
+        menu.open = false
+        menu.querySelector('summary')?.focus()
+      } else {
+        onClose()
+      }
+    }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
@@ -53,7 +68,7 @@ export function Sidebar({ open, onClose }: Props) {
   return (
     <aside className={className} aria-label="Основная навигация">
       <div className="sidebar-top">
-        <Brand />
+        <Brand name={organization?.name} />
         <button
           className="icon-button collapse-toggle"
           type="button"
@@ -64,43 +79,40 @@ export function Sidebar({ open, onClose }: Props) {
           <Icon name={collapsed ? 'expand' : 'collapse'} />
         </button>
       </div>
-      {organization && <p className="sidebar-org">{organization.name}</p>}
-
       <nav>
-        <div className="sidebar-group workspace-links">
-          <p className="sidebar-group-label">Рабочее пространство</p>
-          <PluginLinks slot="sidebar.main" onClose={onClose} />
-        </div>
-        <div className="sidebar-group">
-          <p className="sidebar-group-label">Аккаунт</p>
-          <SidebarLink to="/profile" icon="profile" label="Профиль" onClick={onClose} />
-        </div>
-        {user.is_admin && (
-          <div className="sidebar-group admin-links">
-            <p className="sidebar-group-label">Управление</p>
-            <SidebarLink to="/users" icon="users" label="Пользователи" onClick={onClose} />
-            <SidebarLink to="/plugins" end icon="plugin" label="Плагины" onClick={onClose} />
-          </div>
-        )}
+        <PluginLinks slot="sidebar.main" onClose={closeMenu} />
       </nav>
 
       <div className="sidebar-bottom">
-        <PluginLinks slot="sidebar.bottom" onClose={onClose} />
-        <ThemeToggle />
-        <div className="user-chip" title={displayName(user)}>
-          <div className="avatar">{initials(user)}</div>
-          <span>
-            <b>{displayName(user)}</b>
-            <small>{roleLabel(user)}</small>
-          </span>
-        </div>
-        <button className="nav-link danger" type="button" title="Выйти" onClick={() => void logout()}>
-          <Icon name="logout" />
-          <span>Выйти</span>
-        </button>
+        <PluginLinks slot="sidebar.bottom" onClose={closeMenu} />
+        <details className="sidebar-account" ref={accountMenu}>
+          <summary className="user-chip" aria-label={`Аккаунт: ${displayName(user)}`} title={`${displayName(user)} · ${roleLabel(user)}`}>
+            <span className="avatar" aria-hidden="true">{initials(user)}</span>
+            <span className="user-chip-name">{displayName(user)}</span>
+            <Icon name="chevron-down" />
+          </summary>
+          <div className="sidebar-account-links">
+            <SidebarLink to="/profile" icon="profile" label="Профиль" onClick={closeMenu} />
+            {user.is_admin && <>
+              <SidebarLink to="/users" icon="users" label="Пользователи" onClick={closeMenu} />
+              <SidebarLink to="/plugins" end icon="plugin" label="Плагины" onClick={closeMenu} />
+            </>}
+            <ThemeToggle />
+            <button className="nav-link danger" type="button" title="Выйти" onClick={() => void logout()}>
+              <Icon name="logout" />
+              <span>Выйти</span>
+            </button>
+          </div>
+        </details>
       </div>
     </aside>
   )
+}
+
+const pluginIcons: Readonly<Partial<Record<string, IconName>>> = {
+  todo: 'todo',
+  notes: 'note',
+  'direct-ai-control': 'sparkles',
 }
 
 function PluginLinks({ slot, onClose }: { slot: string; onClose: () => void }) {
@@ -112,7 +124,7 @@ function PluginLinks({ slot, onClose }: { slot: string; onClose: () => void }) {
 
   return <>
     {items.map((item) => <SidebarLink key={`${item.pluginId}:${item.path}`} to={item.path}
-      icon={item.pluginId === 'todo' ? 'todo' : item.pluginId === 'notes' ? 'note' : isIconName(item.icon) ? item.icon : 'plugin'} label={item.title} onClick={onClose} />)}
+      icon={pluginIcons[item.pluginId] ?? (isIconName(item.icon) ? item.icon : 'plugin')} label={item.title} onClick={onClose} />)}
     {slot === 'sidebar.main' && error && <button className="nav-link" type="button"
       title="Не удалось загрузить плагины. Повторить" onClick={reload}>
       <Icon name="plugin" /><span>Повторить загрузку</span>

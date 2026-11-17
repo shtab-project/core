@@ -13,6 +13,8 @@ const paths = {
   logout: 'M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4M15 8l4 4-4 4M19 12H9',
   collapse: 'M15 6l-6 6 6 6',
   expand: 'M9 6l6 6-6 6',
+  'chevron-down': 'm6 9 6 6 6-6',
+  sparkles: 'M12 2c1.2 5.7 4.3 8.8 10 10-5.7 1.2-8.8 4.3-10 10C10.8 16.3 7.7 13.2 2 12c5.7-1.2 8.8-4.3 10-10Z',
   menu: 'M4 7h16M4 12h16M4 17h16',
 } as const
 

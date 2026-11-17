@@ -1,48 +1,23 @@
 @font-face {
+  font-family: Inter;
+  src: url('./assets/fonts/inter-variable.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: Inter;
+  src: url('./assets/fonts/inter-variable-italic.woff2') format('woff2');
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
   font-family: 'JetBrains Mono Nerd';
   src: url('./assets/fonts/jetbrains-mono-nerd-regular.woff2') format('woff2');
-  font-style: normal;
-  font-weight: 400;
   font-display: swap;
-}
-
-@font-face {
-  font-family: 'JetBrains Mono Nerd';
-  src: url('./assets/fonts/jetbrains-mono-nerd-medium.woff2') format('woff2');
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'JetBrains Mono Nerd';
-  src: url('./assets/fonts/jetbrains-mono-nerd-semibold.woff2') format('woff2');
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'JetBrains Mono Nerd';
-  src: url('./assets/fonts/jetbrains-mono-nerd-bold.woff2') format('woff2');
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'JetBrains Mono Nerd';
-  src: url('./assets/fonts/jetbrains-mono-nerd-italic.woff2') format('woff2');
-  font-style: italic;
-  font-weight: 400;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'JetBrains Mono Nerd Symbols';
-  src: url('./assets/fonts/jetbrains-mono-nerd-symbols.woff2') format('woff2');
-  font-display: swap;
-  unicode-range: U+E000-F8FF, U+F0000-10FFFD;
 }
 
 :root {
@@ -77,8 +52,8 @@
   --warning-border: #e9c785;
   color-scheme: light;
 
-  --font-mono: 'JetBrains Mono Nerd', 'JetBrains Mono Nerd Symbols', Consolas, monospace;
-  font-family: var(--font-mono);
+  --font-mono: 'JetBrains Mono Nerd', Consolas, monospace;
+  font-family: Inter, system-ui, sans-serif;
   color: var(--text-strong);
   background: var(--background);
   font-synthesis: none;

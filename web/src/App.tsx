@@ -1,6 +1,6 @@
 import { useCallback, useState, type ReactNode } from 'react'
 import { Outlet, useMatch } from 'react-router'
-import { useSession } from './app/session.tsx'
+import { useMe, useSession } from './app/session.tsx'
 import { PluginsProvider } from './app/plugins.tsx'
 import { Icon } from './components/Icon.tsx'
 import { Sidebar } from './components/Sidebar.tsx'
@@ -60,6 +60,7 @@ function PublicShell({ children }: { children: ReactNode }) {
 
 /** Приложение после входа: сайдбар слева, страница справа. */
 function AppShell() {
+  const { organization } = useMe()
   const [menuOpen, setMenuOpen] = useState(false)
   const closeMenu = useCallback(() => setMenuOpen(false), [])
   const notesPage = useMatch('/plugins/notes')
@@ -67,7 +68,7 @@ function AppShell() {
   return (
     <div className={`app-shell with-sidebar${notesPage ? ' full-workspace' : ''}`}>
       <header className="app-header mobile-header">
-        <Brand />
+        <Brand name={organization?.name} />
         <button
           className="icon-button"
           type="button"
