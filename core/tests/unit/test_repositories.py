@@ -37,8 +37,13 @@ async def test_user_profile_update_keeps_identity_and_roles(session):
     await users.update_roles(user, is_admin=True, is_trusted=True)
     await session.flush()
     same = await users.get_by_oidc_sub("alice")
+    assert same
     await users.update_profile(
-        same, username="new-name", name="new-name", email=None, last_login_at=datetime.now(UTC)
+        same,
+        username="new-name",
+        name="new-name",
+        email=None,
+        last_login_at=datetime.now(UTC),
     )
     await session.flush()
     assert same.id == user_id
@@ -55,6 +60,7 @@ async def test_repositories_do_not_commit(session_factory):
         await OrganizationRepository(session).create("Org")
         await ProjectRepository(session).create("Project")
         await session.rollback()
+
     async with session_factory() as session:
         assert await UserRepository(session).list() == []
         assert await OrganizationRepository(session).get() is None
@@ -64,15 +70,15 @@ async def test_repositories_do_not_commit(session_factory):
 async def test_single_organization(session):
     organizations = OrganizationRepository(session)
     assert await organizations.get() is None
-    organization = await organizations.create("  Штаб  ")
+    organization = await organizations.create("  Shtab  ")
     assert organization.id == 1
-    assert organization.name == "Штаб"
-    # SELECT не записывает созданный объект автоматически.
+    assert organization.name == "Shtab"
+    # A SELECT doesn't flush the new object automatically.
     assert await organizations.get() is None
     await session.flush()
     assert await organizations.get() is organization
     await session.commit()
-    # Освобождаем identity map, чтобы проверять именно ограничение БД.
+    # Clear the identity map so the DB constraint itself is tested.
     session.expunge_all()
     with pytest.raises(IntegrityError):
         await organizations.create("Second")
@@ -83,31 +89,35 @@ async def test_single_organization(session):
 async def test_project_membership_and_update(session):
     projects = ProjectRepository(session)
     user = await create_user(session)
-    project = await projects.create("  Проект  ")
+    project = await projects.create("  Project  ")
     await session.flush()
     assert project.id.version == 7
-    assert project.name == "Проект" and project.description == ""
+    assert project.name == "Project" and project.description == ""
     assert await projects.list_for_user(user.id) == []
     assert await projects.add_member(project, user)
     assert not await projects.add_member(project, user)
     await session.flush()
     assert await projects.list_for_user(user.id) == [project]
-    assert (await projects.get(project.id)).users == [user]
-    loaded_user = await session.scalar(select(User).options(selectinload(User.projects)))
+    loaded = await projects.get(project.id)
+    assert loaded and loaded.users == [user]
+    loaded_user = await session.scalar(
+        select(User).options(selectinload(User.projects))
+    )
     assert loaded_user.projects == [project]
 
     project.updated_at = datetime(2000, 1, 1, tzinfo=UTC)
     await session.flush()
-    await projects.update(project, name="Новое имя", description="Описание")
+    await projects.update(project, name="New name", description="Description")
     await session.flush()
-    assert project.name == "Новое имя" and project.description == "Описание"
+    assert project.name == "New name" and project.description == "Description"
     assert project.updated_at.year > 2000
     assert await projects.remove_member(project, user.id)
     assert not await projects.remove_member(project, user.id)
     await session.flush()
     assert loaded_user.projects == []
     assert await projects.list_for_user(user.id) == []
-    assert (await projects.get(project.id)).users == []
+    loaded = await projects.get(project.id)
+    assert loaded and loaded.users == []
 
 
 @pytest.mark.parametrize("delete_user", [False, True])
@@ -147,6 +157,7 @@ def test_migrations_match_models_and_are_reversible():
     migrations = []
     for path in sorted(directory.glob("*.py")):
         spec = importlib.util.spec_from_file_location(path.stem, path)
+        assert spec and spec.loader
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         migrations.append(module)

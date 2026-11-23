@@ -1,18 +1,17 @@
-class ServiceError(Exception):
-    """Ошибка сценария, которую транспорт преобразует в ответ клиенту."""
+"""Compatibility imports for plugins that use the original module path."""
 
+from shtab_core.exceptions import (
+    ConflictError,
+    InvalidInputError,
+    NotFoundError,
+    ServiceError,
+    UnauthorizedError,
+)
 
-class InvalidInputError(ServiceError):
-    pass
-
-
-class UnauthorizedError(ServiceError):
-    pass
-
-
-class NotFoundError(ServiceError):
-    pass
-
-
-class ConflictError(ServiceError):
-    pass
+__all__ = (
+    "ConflictError",
+    "InvalidInputError",
+    "NotFoundError",
+    "ServiceError",
+    "UnauthorizedError",
+)

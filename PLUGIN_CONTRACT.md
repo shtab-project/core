@@ -121,4 +121,8 @@ codex mcp add shtab --url http://127.0.0.1:8000/mcp/ --bearer-token-env-var SHTA
 
 Перезапустите Codex после настройки. Для удалённого подключения укажите HTTPS-адрес
 Shtab. Токен можно отозвать через `DELETE /api/me/mcp-tokens/{token_id}`.
+List your active tokens with `GET /api/me/mcp-tokens`. When an admin disables a user
+(`PATCH /api/users/{id}` with `is_active: false`), Shtab rejects their login and
+revokes all their browser sessions and MCP tokens. Verify the user with
+`require_mcp_user_id()`; the token verifier already rejects disabled users.
 Плагин заметок предоставляет `notes_list`, `notes_get` и `notes_create`.

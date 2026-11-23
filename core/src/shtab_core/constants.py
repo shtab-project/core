@@ -1,4 +1,4 @@
-"""Общие константы ядра Shtab."""
+"""Shared Shtab core constants."""
 
 COOKIE = "shtab_session"
 

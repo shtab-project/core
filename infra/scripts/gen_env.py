@@ -1,7 +1,7 @@
-"""Создать или дополнить infra/.env по шаблону .env.example.
+"""Create or extend infra/.env from the .env.example template.
 
-- Ключи, которых в .env ещё нет, добавляются; пустые секреты заполняются случайными значениями.
-- Существующие значения никогда не перезаписываются — скрипт можно запускать повторно.
+- Keys missing from .env are added; empty secrets get random values.
+- Existing values are never overwritten, so the script is safe to rerun.
 """
 
 import secrets
@@ -28,11 +28,11 @@ for line in example.read_text("utf-8").splitlines():
 
 if not target.exists():
     target.write_text("\n".join(added) + "\n", "utf-8", newline="\n")
-    print(f"Создан {target}")
+    print(f"Created {target}")
 elif added:
     text = target.read_text("utf-8")
     sep = "" if text.endswith("\n") else "\n"
     target.write_text(text + sep + "\n".join(added) + "\n", "utf-8", newline="\n")
-    print(f"Добавлено в {target}: {', '.join(a.split('=')[0] for a in added)}")
+    print(f"Added to {target}: {', '.join(a.split('=')[0] for a in added)}")
 else:
-    print(f"{target} актуален")
+    print(f"{target} is up to date")

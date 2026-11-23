@@ -1,4 +1,4 @@
-"""Мастер первого запуска: название организации, первый прошедший — администратор."""
+"""First-run wizard: name the organization; the first user becomes admin."""
 
 from fastapi import APIRouter, status
 
@@ -8,11 +8,11 @@ from shtab_core.schemas import OrganizationOut, SetupIn, SetupStatus
 router = APIRouter(prefix="/api/setup", tags=["setup"])
 
 
-@router.get("", response_model=SetupStatus, summary="Настроен ли Shtab")
+@router.get("", response_model=SetupStatus, summary="Is Shtab set up")
 async def get_status(service: Setup):
     org = await service.get_organization()
     return SetupStatus(
-        initialized=org is not None,
+        initialized=bool(org),
         organization=OrganizationOut.model_validate(org) if org else None,
     )
 
@@ -21,7 +21,7 @@ async def get_status(service: Setup):
     "",
     response_model=OrganizationOut,
     status_code=status.HTTP_201_CREATED,
-    summary="Первичная настройка: создать организацию и стать администратором",
+    summary="Initial setup: create the organization and become admin",
 )
 async def run_setup(body: SetupIn, user: CurrentUser, service: Setup):
     return await service.setup(body.organization_name, user)

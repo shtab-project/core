@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,11 +10,11 @@ from sqlalchemy.orm import selectinload
 from shtab_core.models import Project, User
 
 
+@dataclass
 class ProjectRepository:
-    """Проекты и участники. Транзакцию завершает вызывающий код."""
+    """Projects and members. The caller ends the transaction."""
 
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
+    session: AsyncSession
 
     async def get(self, project_id: uuid.UUID) -> Project | None:
         query = select(Project).where(Project.id == project_id)
@@ -43,7 +44,11 @@ class ProjectRepository:
         return project
 
     async def update(
-        self, project: Project, *, name: str | None = None, description: str | None = None
+        self,
+        project: Project,
+        *,
+        name: str | None = None,
+        description: str | None = None,
     ) -> Project:
         if name is not None:
             project.name = name.strip()
@@ -55,16 +60,16 @@ class ProjectRepository:
         await self.session.delete(project)
 
     async def add_member(self, project: Project, user: User) -> bool:
-        """Вернуть False, если пользователь уже участвует в проекте."""
+        """Return False if the user is already a member."""
         if user in project.users:
             return False
         project.users.append(user)
         return True
 
     async def remove_member(self, project: Project, user_id: uuid.UUID) -> bool:
-        """Вернуть False, если пользователь не участвует в проекте."""
+        """Return False if the user is not a member."""
         member = next((user for user in project.users if user.id == user_id), None)
-        if member is None:
+        if not member:
             return False
         project.users.remove(member)
         return True

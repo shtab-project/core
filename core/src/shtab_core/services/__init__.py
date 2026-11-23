@@ -1,1 +1,1 @@
-"""Сервисы выполняют бизнес-сценарии через UnitOfWork."""
+"""Services run business scenarios through UnitOfWork."""

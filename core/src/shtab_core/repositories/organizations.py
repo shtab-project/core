@@ -1,12 +1,14 @@
+from dataclasses import dataclass
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shtab_core.constants import ORGANIZATION_ID
 from shtab_core.models import Organization
 
 
+@dataclass
 class OrganizationRepository:
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
+    session: AsyncSession
 
     async def get(self) -> Organization | None:
         return await self.session.get(Organization, ORGANIZATION_ID)

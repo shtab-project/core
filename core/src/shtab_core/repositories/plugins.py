@@ -1,12 +1,14 @@
+from dataclasses import dataclass
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shtab_core.models import PluginRecord
 
 
+@dataclass
 class PluginRepository:
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
+    session: AsyncSession
 
     async def get(self, plugin_id: str) -> PluginRecord | None:
         return await self.session.get(PluginRecord, plugin_id)

@@ -1,11 +1,12 @@
 from collections.abc import AsyncIterator
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from shtab_core.constants import COOKIE
 from shtab_core.db import get_session_factory
+from shtab_core.exceptions import ForbiddenError
 from shtab_core.models import User
 from shtab_core.services.auth import AuthService
 from shtab_core.services.plugins import PluginLoader, PluginManager
@@ -17,7 +18,9 @@ from shtab_core.uow import UnitOfWork
 
 
 async def get_uow(
-    session_factory: Annotated[async_sessionmaker[AsyncSession], Depends(get_session_factory)],
+    session_factory: Annotated[
+        async_sessionmaker[AsyncSession], Depends(get_session_factory)
+    ],
 ) -> AsyncIterator[UnitOfWork]:
     async with UnitOfWork(session_factory) as uow:
         yield uow
@@ -56,7 +59,7 @@ Projects = Annotated[ProjectService, Depends(get_project_service)]
 
 def get_plugin_loader(request: Request) -> PluginLoader:
     loader = getattr(request.app.state, "plugin_loader", None)
-    if loader is None:
+    if not loader:
         loader = PluginLoader(request.app)
         request.app.state.plugin_loader = loader
     return loader
@@ -82,7 +85,7 @@ CurrentUser = Annotated[User, Depends(current_user)]
 
 async def require_admin(user: CurrentUser) -> User:
     if not user.is_admin:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Только для администратора")
+        raise ForbiddenError("Admins only")
     return user
 
 
@@ -90,7 +93,7 @@ AdminUser = Annotated[User, Depends(require_admin)]
 
 
 def get_admin_plugin_manager(_: AdminUser, plugins: Plugins) -> PluginManager:
-    """Доступ к управлению плагинами только после проверки администратора."""
+    """Plugin management, only after the admin check."""
     return plugins
 
 

@@ -1,7 +1,7 @@
-"""Тесты ядра — на настоящем PostgreSQL (база shtab_test) и Redis (db 15).
+"""Core tests on real PostgreSQL (shtab_test database) and Redis (db 15).
 
-Нужен запущенный фундамент: docker compose up -d (в infra/).
-Пароль БД берётся из infra/.env; можно задать свой URL через SHTAB_TEST_DATABASE_URL.
+The base stack must be running: docker compose up -d (in infra/).
+The DB password comes from infra/.env; SHTAB_TEST_DATABASE_URL overrides the URL.
 """
 
 import os
@@ -9,6 +9,7 @@ import subprocess
 import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
 from pathlib import Path
 
 CORE = Path(__file__).resolve().parents[1]
@@ -20,13 +21,13 @@ def _infra_env(key: str) -> str:
         name, sep, value = line.partition("=")
         if sep and name == key:
             return value
-    raise RuntimeError(f"{key} нет в {INFRA_ENV}")
+    raise RuntimeError(f"{key} is missing from {INFRA_ENV}")
 
 
 os.environ["SHTAB_DATABASE_URL"] = os.environ.get("SHTAB_TEST_DATABASE_URL") or (
-    f"postgresql+asyncpg://shtab:{_infra_env('SHTAB_DB_PASSWORD')}@localhost:5432/shtab_test"
+    f"postgresql+asyncpg://shtab:{_infra_env('SHTAB_DB_PASS')}@localhost:5432/shtab_test"
 )
-os.environ["SHTAB_REDIS_URL"] = "redis://localhost:6379/15"
+os.environ["SHTAB_REDIS_URL"] = f"redis://:{_infra_env('REDIS_PASS')}@localhost:6379/15"
 os.environ["SHTAB_SECRET_KEY"] = "test-secret"
 os.environ["SHTAB_PUBLIC_URL"] = "http://shtab.localhost"
 
@@ -43,7 +44,7 @@ from shtab_core.sessions import redis  # noqa: E402
 
 @pytest.fixture(scope="session", autouse=True)
 def migrated_db():
-    """Прогнать миграции вниз и вверх — заодно проверяем, что они обратимы."""
+    """Run migrations down and up, which also checks they are reversible."""
     for command, target in (("downgrade", "base"), ("upgrade", "head")):
         subprocess.run(
             [sys.executable, "-m", "alembic", command, target],
@@ -57,16 +58,19 @@ def migrated_db():
 @pytest.fixture(autouse=True)
 async def clean_state(migrated_db):
     async with engine.begin() as conn:
-        await conn.execute(text("TRUNCATE plugins, users_projects, projects, users, organization"))
+        await conn.execute(
+            text("TRUNCATE plugins, users_projects, projects, users, organization")
+        )
+
     await redis.flushdb()
     yield
 
 
+@dataclass
 class FakeOidc:
-    """Подмена Authentik: callback сразу «возвращает» пользователя с заданными claims."""
+    """Fake Authentik: the callback returns a user with the given claims."""
 
-    def __init__(self) -> None:
-        self.claims: dict = {}
+    claims: dict[str, object] = field(default_factory=dict)
 
     async def authorize_redirect(self, request, redirect_uri):
         return RedirectResponse(
@@ -90,12 +94,15 @@ def oidc():
 
 @pytest.fixture
 def new_client(oidc):
-    """Фабрика клиентов: каждый — отдельный браузер со своими cookie."""
+    """Client factory: each client is a separate browser with its own cookies."""
 
     @asynccontextmanager
     async def factory() -> AsyncIterator[AsyncClient]:
         transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://shtab.localhost") as client:
+
+        async with AsyncClient(
+            transport=transport, base_url="http://shtab.localhost"
+        ) as client:
             yield client
 
     return factory

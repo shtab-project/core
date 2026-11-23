@@ -1,1 +1,1 @@
-"""Репозитории читают и изменяют данные; сессией и транзакцией управляет UnitOfWork."""
+"""Repositories read and change data; UnitOfWork owns the session and transaction."""

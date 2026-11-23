@@ -10,7 +10,7 @@ from shtab_core.constants import (
     PLUGIN_URL_MAX_LENGTH,
     PLUGIN_VERSION_MAX_LENGTH,
 )
-from shtab_core.services.plugins import Plugin, PluginFrontend
+from shtab_core.manifest import Plugin, PluginFrontend
 
 
 class UserOut(BaseModel):
@@ -22,6 +22,7 @@ class UserOut(BaseModel):
     email: str | None
     is_admin: bool
     is_trusted: bool
+    is_active: bool
     created_at: datetime
     last_login_at: datetime | None
 
@@ -29,6 +30,7 @@ class UserOut(BaseModel):
 class UserUpdate(BaseModel):
     is_admin: bool | None = None
     is_trusted: bool | None = None
+    is_active: bool | None = None
 
 
 class OrganizationOut(BaseModel):
@@ -53,7 +55,7 @@ class Me(BaseModel):
 
 
 class LogoutOut(BaseModel):
-    # Куда отправить браузер, чтобы завершить сессию и в Authentik
+    # Where to send the browser to end the Authentik session too
     logout_url: str | None
 
 
@@ -64,7 +66,9 @@ class PluginIn(BaseModel):
     name: str = Field(min_length=1, max_length=PLUGIN_NAME_MAX_LENGTH)
     version: str = Field(min_length=1, max_length=PLUGIN_VERSION_MAX_LENGTH)
     url: str = Field(min_length=1, max_length=PLUGIN_URL_MAX_LENGTH)
-    backend_entrypoint: str = Field(min_length=1, max_length=PLUGIN_ENTRYPOINT_MAX_LENGTH)
+    backend_entrypoint: str = Field(
+        min_length=1, max_length=PLUGIN_ENTRYPOINT_MAX_LENGTH
+    )
     mcp_entrypoint: str | None = Field(
         default=None, min_length=1, max_length=PLUGIN_ENTRYPOINT_MAX_LENGTH
     )
@@ -80,6 +84,28 @@ class PluginIn(BaseModel):
             mcp_entrypoint=self.mcp_entrypoint,
             frontend=self.frontend,
         )
+
+
+class McpTokenOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    expires_in: int
+
+
+class McpTokenIssued(BaseModel):
+    id: str
+    token: str
+    expires_in: int
+
+
+class CatalogPluginOut(BaseModel):
+    id: str
+    name: str
+    version: str
+    description: str
+    icon: str
+    installed_version: str | None
 
 
 class PluginOut(BaseModel):

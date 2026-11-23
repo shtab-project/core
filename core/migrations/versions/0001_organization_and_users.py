@@ -41,8 +41,12 @@ def upgrade() -> None:
         sa.Column("username", sa.String(length=150), nullable=False),
         sa.Column("email", sa.String(length=254), nullable=True),
         sa.Column("name", sa.String(length=200), nullable=False),
-        sa.Column("is_admin", sa.Boolean(), server_default=sa.text("false"), nullable=False),
-        sa.Column("is_trusted", sa.Boolean(), server_default=sa.text("false"), nullable=False),
+        sa.Column(
+            "is_admin", sa.Boolean(), server_default=sa.text("false"), nullable=False
+        ),
+        sa.Column(
+            "is_trusted", sa.Boolean(), server_default=sa.text("false"), nullable=False
+        ),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),

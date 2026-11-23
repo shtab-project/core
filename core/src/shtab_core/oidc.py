@@ -1,4 +1,4 @@
-"""OIDC-клиент Authentik (приложение «Shtab»)."""
+"""Authentik OIDC client (the "Shtab" app)."""
 
 from typing import Annotated
 
@@ -39,7 +39,9 @@ class AuthentikTransport(httpx2.AsyncHTTPTransport):
 class AuthentikClient(AsyncOAuth2Client):
     def __init__(self, *args, **kwargs):
         if settings.auth_internal_url:
-            kwargs["transport"] = AuthentikTransport(settings.auth_url, settings.auth_internal_url)
+            kwargs["transport"] = AuthentikTransport(
+                settings.auth_url, settings.auth_internal_url
+            )
         super().__init__(*args, **kwargs)
 
 
@@ -54,7 +56,10 @@ oauth.register(
     client_id=settings.oidc_client_id,
     client_secret=settings.oidc_client_secret,
     server_metadata_url=f"{settings.oidc_issuer}.well-known/openid-configuration",
-    client_kwargs={"scope": "openid email profile", "code_challenge_method": "S256"},  # PKCE
+    client_kwargs={
+        "scope": "openid email profile",
+        "code_challenge_method": "S256",
+    },  # PKCE
 )
 
 

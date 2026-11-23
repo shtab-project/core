@@ -14,7 +14,7 @@ from shtab_core.repositories.users import UserRepository
 
 
 class UnitOfWork:
-    """Одна сессия для репозиториев; сохранение через commit или transaction."""
+    """One session for all repositories; save via commit or transaction."""
 
     users: UserRepository
     organizations: OrganizationRepository
@@ -26,8 +26,8 @@ class UnitOfWork:
         self._session: AsyncSession | None = None
 
     async def __aenter__(self) -> Self:
-        if self._session is not None:
-            raise RuntimeError("UnitOfWork уже открыт")
+        if self._session:
+            raise RuntimeError("UnitOfWork is already open")
         self._session = self._session_factory(autoflush=False, expire_on_commit=False)
         self.users = UserRepository(self._session)
         self.organizations = OrganizationRepository(self._session)
@@ -43,7 +43,7 @@ class UnitOfWork:
     ) -> None:
         session = self._get_session()
         try:
-            # Откат нужен и при обычном выходе без commit, и при исключении.
+            # Roll back on a normal exit without commit and on an exception.
             if session.in_transaction():
                 await session.rollback()
         finally:
@@ -54,7 +54,7 @@ class UnitOfWork:
 
     @asynccontextmanager
     async def transaction(self) -> AsyncGenerator[AsyncSession]:
-        """Сохранить при успехе, иначе откатить и передать исходное исключение."""
+        """Commit on success; otherwise roll back and re-raise the original error."""
         session = self._get_session()
         try:
             yield session
@@ -64,8 +64,8 @@ class UnitOfWork:
             raise
 
     def _get_session(self) -> AsyncSession:
-        if self._session is None:
-            raise RuntimeError("UnitOfWork нужно открыть через async with")
+        if not self._session:
+            raise RuntimeError("Open UnitOfWork with async with")
         return self._session
 
     async def flush(self) -> None:

@@ -7,46 +7,52 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from shtab_core.config import settings
 from shtab_core.db import get_session_factory
-from shtab_core.mcp_auth import router as mcp_tokens_router
-from shtab_core.mcp_gateway import mount_mcp
-from shtab_core.routers import auth, plugin_ui, plugins, setup, users
-from shtab_core.services.errors import (
+from shtab_core.exceptions import (
+    BadGatewayError,
     ConflictError,
+    ForbiddenError,
     InvalidInputError,
     NotFoundError,
     ServiceError,
     UnauthorizedError,
 )
+from shtab_core.mcp_gateway import mount_mcp
+from shtab_core.routers import auth, mcp_tokens, plugin_ui, plugins, setup, users
 from shtab_core.services.plugins import PluginLoader
 from shtab_core.uow import UnitOfWork
 
 
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
-    # Та же фабрика, что у HTTP-запросов; переопределение используется в тестах.
+    # Same factory as HTTP requests; tests override it.
     factory_provider = application.dependency_overrides.get(
         get_session_factory, get_session_factory
     )
     loader = getattr(application.state, "plugin_loader", None)
-    if loader is None:
+    if not loader:
         loader = PluginLoader(application)
         application.state.plugin_loader = loader
+
     async with UnitOfWork(factory_provider()) as uow:
         for plugin in await uow.plugins.list_all():
             loader.restore(plugin)
+
     async with application.state.mcp.session_manager.run():
         yield
 
 
-async def service_error_handler(request: Request, exc: ServiceError) -> JSONResponse:
-    codes_status: dict[type[Exception], int] = {
+async def service_error_handler(_: Request, exc: Exception) -> JSONResponse:
+    """Registered for ServiceError; typed as Exception to match Starlette."""
+    status_by_error: dict[type[Exception], int] = {
         InvalidInputError: status.HTTP_400_BAD_REQUEST,
         UnauthorizedError: status.HTTP_401_UNAUTHORIZED,
+        ForbiddenError: status.HTTP_403_FORBIDDEN,
         NotFoundError: status.HTTP_404_NOT_FOUND,
         ConflictError: status.HTTP_409_CONFLICT,
+        BadGatewayError: status.HTTP_502_BAD_GATEWAY,
     }
 
-    status_code: int = codes_status.get(type(exc), status.HTTP_500_INTERNAL_SERVER_ERROR)
+    status_code = status_by_error.get(type(exc), status.HTTP_500_INTERNAL_SERVER_ERROR)
     return JSONResponse(status_code=status_code, content={"detail": str(exc)})
 
 
@@ -74,7 +80,7 @@ def create_app() -> FastAPI:
     application.include_router(auth.router)
     application.include_router(setup.router)
     application.include_router(users.router)
-    application.include_router(mcp_tokens_router)
+    application.include_router(mcp_tokens.router)
     application.include_router(plugins.router)
     application.include_router(plugin_ui.router)
     application.add_exception_handler(ServiceError, service_error_handler)

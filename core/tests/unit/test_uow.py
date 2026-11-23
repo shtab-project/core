@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 import pytest
+from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
 
 from shtab_core.uow import UnitOfWork
@@ -32,10 +33,10 @@ async def test_repository_operations_never_flush_or_end_session(uow, monkeypatch
     assert await uow.users.list() == []
     assert await uow.projects.list() == []
     assert await uow.organizations.get() is None
-    assert user.id is None and project.id is None
+    assert inspect(user).pending and inspect(project).pending
     for spy in spies.values():
         spy.assert_not_awaited()
-    # Записывать может только явный вызов через UoW.
+    # Only an explicit call through the UoW may write.
     await uow.flush()
     assert user.id.version == 7
     assert await uow.projects.remove_member(project, user.id)
@@ -48,11 +49,12 @@ async def test_repository_operations_never_flush_or_end_session(uow, monkeypatch
 @pytest.mark.parametrize("fail", [False, True])
 async def test_exit_rolls_back_uncommitted_work_and_closes(session_factory, fail):
     uow = UnitOfWork(session_factory)
+    spies: dict[str, AsyncMock] = {}
     try:
         async with uow:
             session = uow.users.session
-            session.close = AsyncMock(wraps=session.close)
-            session.rollback = AsyncMock(wraps=session.rollback)
+            spies["close"] = session.close = AsyncMock(wraps=session.close)
+            spies["rollback"] = session.rollback = AsyncMock(wraps=session.rollback)
             assert session is uow.organizations.session is uow.projects.session
             await add_user(uow)
             await uow.organizations.create("Org")
@@ -62,8 +64,9 @@ async def test_exit_rolls_back_uncommitted_work_and_closes(session_factory, fail
                 raise ValueError("failed scenario")
     except ValueError:
         assert fail
-    session.close.assert_awaited_once()
-    session.rollback.assert_awaited_once()
+    spies["close"].assert_awaited_once()
+    spies["rollback"].assert_awaited_once()
+
     async with UnitOfWork(session_factory) as check:
         assert await check.users.list() == []
         assert await check.organizations.get() is None
@@ -78,10 +81,12 @@ async def test_explicit_commit_persists_all_repositories(session_factory):
         await uow.projects.add_member(project, user)
         await uow.commit()
         user_id, project_id = user.id, project.id
+
     async with UnitOfWork(session_factory) as check:
         assert await check.users.get(user_id) is not None
         assert await check.organizations.get() is not None
-        assert (await check.projects.get(project_id)).users[0].id == user_id
+        project = await check.projects.get(project_id)
+        assert project and project.users[0].id == user_id
 
 
 async def test_failed_commit_rolls_back_whole_transaction(session_factory):
@@ -91,6 +96,7 @@ async def test_failed_commit_rolls_back_whole_transaction(session_factory):
             await add_user(uow, "duplicate")
             await uow.organizations.create("Org")
             await uow.commit()
+
     async with UnitOfWork(session_factory) as check:
         assert await check.users.list() == []
         assert await check.organizations.get() is None
@@ -98,8 +104,10 @@ async def test_failed_commit_rolls_back_whole_transaction(session_factory):
 
 async def test_closed_uow_rejects_transaction_methods(session_factory):
     uow = UnitOfWork(session_factory)
+
     async with uow:
         pass
+
     for method in (uow.flush, uow.commit, uow.rollback):
         with pytest.raises(RuntimeError, match="async with"):
             await method()
@@ -135,7 +143,7 @@ async def test_transaction_rolls_back_and_preserves_error(uow, error):
             raise error
 
     assert caught.value is error
-    # Проверяем откат до выхода из внешнего UoW, а не только при закрытии сессии.
+    # Check the rollback before the outer UoW exits, not only on session close.
     assert await uow.users.list() == []
     assert await uow.organizations.get() is None
 
@@ -149,7 +157,9 @@ async def test_transaction_commit_failure_preserves_integrity_error(uow):
 
     assert await uow.users.list() == []
     assert await uow.organizations.get() is None
-    # После неудачного commit сессия снова пригодна для следующей транзакции.
+
+    # After a failed commit the session is usable for the next transaction.
     async with uow.transaction():
         await add_user(uow, "retry")
+
     assert len(await uow.users.list()) == 1

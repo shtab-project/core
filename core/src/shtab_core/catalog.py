@@ -3,8 +3,8 @@ from pathlib import Path
 
 from pydantic import TypeAdapter
 
+from shtab_core.manifest import Plugin
 from shtab_core.schemas import PluginIn
-from shtab_core.services.plugins import Plugin
 
 
 @dataclass(frozen=True)
