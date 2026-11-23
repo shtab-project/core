@@ -21,9 +21,9 @@ SECRET_KEYS = (
 def configure(root: Path, host: str, port: int = 80, auth_port: int = 9000) -> Path:
     address = ipaddress.ip_address(host)
     if address.version != 4 or address.is_unspecified or address.is_multicast:
-        raise ValueError("Укажите IPv4-адрес VPS")
+        raise ValueError("Provide the VPS IPv4 address")
     if not (1 <= port <= 65535 and 1 <= auth_port <= 65535) or port == auth_port:
-        raise ValueError("Порты должны различаться и быть в диапазоне 1–65535")
+        raise ValueError("Ports must differ and be in the range 1–65535")
     destination = root / "infra" / "vps"
     destination.mkdir(mode=0o700, parents=True, exist_ok=True)
     os.chmod(destination, 0o700)
@@ -37,7 +37,7 @@ def configure(root: Path, host: str, port: int = 80, auth_port: int = 9000) -> P
         for key in SECRET_KEYS:
             if not existing.get(key):
                 raise ValueError(
-                    f"В существующем {target} отсутствует {key}; восстановите конфигурацию"
+                    f"Existing {target} is missing {key}; restore the configuration"
                 )
         if (
             existing.get("SHTAB_HOST") != host
@@ -45,7 +45,7 @@ def configure(root: Path, host: str, port: int = 80, auth_port: int = 9000) -> P
             or existing.get("SHTAB_AUTH_PORT") != str(auth_port)
         ):
             raise ValueError(
-                "Адрес или порты отличаются от сохранённых. Используйте прежние параметры"
+                "Address or ports differ from the saved ones. Use the previous values"
             )
     public = f"http://{host}" + (f":{port}" if port != 80 else "")
     auth = f"http://{host}:{auth_port}"
@@ -95,7 +95,7 @@ def main():
         )
     except ValueError as error:
         parser.error(str(error))
-    print(f"Конфигурация готова. Данные входа: {path}")
+    print(f"Configuration ready. Login details: {path}")
 
 
 if __name__ == "__main__":

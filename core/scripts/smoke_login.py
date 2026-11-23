@@ -1,12 +1,12 @@
-"""Сквозная проверка входа через настоящий Authentik.
+"""End-to-end login check against a real Authentik.
 
-1. Создаёт в Authentik временного пользователя со случайным паролем (через API, токен akadmin).
-2. Проходит вход как браузер: /api/auth/login → Authentik (логин + пароль) → /api/auth/callback.
-3. Проверяет, что /api/me возвращает этого пользователя.
-4. Удаляет временного пользователя из Authentik и из ядра.
+1. Creates a temporary Authentik user (API, akadmin token).
+2. Logs in like a browser: /api/auth/login → Authentik → /api/auth/callback.
+3. Checks that /api/me returns that user.
+4. Deletes the temporary user from Authentik and the core.
 
-Мастер первой настройки НЕ запускается — организация и администратор не создаются.
-Запуск (стек должен быть поднят):  uv run python scripts/smoke_login.py
+The setup wizard is NOT run: no organization or admin is created.
+Run (the stack must be up):  uv run python scripts/smoke_login.py
 """
 
 import secrets
@@ -18,7 +18,7 @@ from urllib.parse import urlencode, urljoin, urlsplit
 
 import httpx
 
-# Резолвер Windows (в отличие от браузеров) не знает *.localhost — направляем на 127.0.0.1.
+# The Windows resolver doesn't know *.localhost, so point it at 127.0.0.1.
 _getaddrinfo = socket.getaddrinfo
 
 
@@ -31,7 +31,11 @@ def _localhost_getaddrinfo(host, *args, **kwargs):
 socket.getaddrinfo = _localhost_getaddrinfo
 
 INFRA_ENV = Path(__file__).resolve().parents[2] / "infra" / ".env"
-env = dict(line.split("=", 1) for line in INFRA_ENV.read_text("utf-8").splitlines() if "=" in line)
+env = dict(
+    line.split("=", 1)
+    for line in INFRA_ENV.read_text("utf-8").splitlines()
+    if "=" in line
+)
 SHTAB = env.get("SHTAB_PUBLIC_URL", "http://shtab.localhost")
 AUTH = env.get("SHTAB_AUTH_URL", "http://auth.shtab.localhost")
 API = f"{AUTH}/api/v3"
@@ -46,7 +50,7 @@ def step(msg: str) -> None:
 
 
 def follow(client: httpx.Client, url: str, stop_host: str | None = None) -> str:
-    """Идти по редиректам; остановиться на странице потока Authentik или на stop_host."""
+    """Follow redirects up to the Authentik flow or stop_host."""
     while True:
         r = client.get(url, follow_redirects=False)
         if r.status_code not in (301, 302, 303, 307, 308):
@@ -57,7 +61,7 @@ def follow(client: httpx.Client, url: str, stop_host: str | None = None) -> str:
 
 
 def run_flow(client: httpx.Client, flow_url: str) -> str:
-    """Пройти поток входа Authentik через его API. Вернуть, куда он отправляет дальше."""
+    """Run the Authentik login flow via API; return the next URL."""
     parts = urlsplit(flow_url)
     slug = parts.path.rstrip("/").split("/")[-1]
     executor = f"{API}/flows/executor/{slug}/?{urlencode({'query': parts.query})}"
@@ -73,10 +77,11 @@ def run_flow(client: httpx.Client, flow_url: str) -> str:
         elif component == "ak-stage-password":
             body = {"component": component, "password": password}
         else:
-            sys.exit(f"Неожиданный шаг входа: {component} {challenge.get('response_errors', '')}")
-        # После POST Authentik отвечает 302 на тот же executor со следующим шагом
+            errors = challenge.get("response_errors", "")
+            sys.exit(f"Unexpected login step: {component} {errors}")
+        # After a POST, Authentik redirects to the same executor with the next step
         challenge = client.post(executor, json=body, follow_redirects=True).json()
-    sys.exit("Поток входа не завершился")
+    sys.exit("Login flow did not finish")
 
 
 def main() -> None:
@@ -84,27 +89,33 @@ def main() -> None:
     user = (
         admin.post(
             f"{API}/core/users/",
-            json={"username": username, "name": "Smoke Test", "email": f"{username}@example.test"},
+            json={
+                "username": username,
+                "name": "Smoke Test",
+                "email": f"{username}@example.test",
+            },
         )
         .raise_for_status()
         .json()
     )
-    admin.post(f"{API}/core/users/{user['pk']}/set_password/", json={"password": password})
-    step(f"в Authentik создан временный пользователь {username}")
+    admin.post(
+        f"{API}/core/users/{user['pk']}/set_password/", json={"password": password}
+    )
+    step(f"temporary Authentik user {username} created")
 
     try:
         browser = httpx.Client(timeout=30)
         flow_url = follow(browser, f"{SHTAB}/api/auth/login?next=/api/me")
-        step("ядро отправило на вход в Authentik")
+        step("core redirected to the Authentik login")
         after_login = run_flow(browser, flow_url)
-        step("логин и пароль приняты Authentik")
+        step("Authentik accepted the username and password")
         final = browser.get(after_login, follow_redirects=True)
         me = final.json()
         assert me["user"]["username"] == username, me
         step(f"/api/me → {me['user']['username']}, admin={me['user']['is_admin']}")
         assert "shtab_session" in browser.cookies
-        step("сессия ядра выдана (cookie shtab_session)")
-        print("OK: вход через Authentik работает")
+        step("core session issued (shtab_session cookie)")
+        print("OK: Authentik login works")
     finally:
         admin.delete(f"{API}/core/users/{user['pk']}/")
         subprocess.run(
@@ -122,7 +133,7 @@ def main() -> None:
             ],
             check=False,
         )
-        step("временный пользователь удалён из Authentik и ядра")
+        step("temporary user deleted from Authentik and the core")
 
 
 if __name__ == "__main__":

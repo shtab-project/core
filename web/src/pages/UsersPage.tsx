@@ -6,7 +6,7 @@ import { Icon } from '../components/Icon.tsx'
 import { displayName, formatDate, initials } from '../format.ts'
 import './account.css'
 
-type Role = 'is_admin' | 'is_trusted'
+type Role = 'is_admin' | 'is_trusted' | 'is_active'
 
 /** Список пользователей и их роли — только для администратора. */
 export function UsersPage() {
@@ -34,6 +34,9 @@ function UsersList({ currentUserId }: { currentUserId: string }) {
 
   async function toggle(user: User, role: Role) {
     if (updating.current) return
+    if (role === 'is_active' && user.is_active && !window.confirm(
+      `Отключить ${displayName(user)}? Вход будет запрещён, все сессии и токены MCP отзовутся.`,
+    )) return
     updating.current = true
     setPendingUser(user.id)
     setError(null)
@@ -84,12 +87,13 @@ function UsersList({ currentUserId }: { currentUserId: string }) {
                   <th>Пользователь</th>
                   <th>Админ</th>
                   <th>Доверенный</th>
+                  <th>Доступ</th>
                   <th>Последний вход</th>
                 </tr>
               </thead>
               <tbody>
                 {visible.map((user) => (
-                  <tr key={user.id} aria-busy={pendingUser === user.id}>
+                  <tr key={user.id} aria-busy={pendingUser === user.id} data-inactive={user.is_active ? undefined : ''}>
                     <td className="directory-person">
                       <div className="directory-identity">
                         <span className="avatar" aria-hidden="true">{initials(user)}</span>
@@ -119,6 +123,16 @@ function UsersList({ currentUserId }: { currentUserId: string }) {
                         onChange={() => void toggle(user, 'is_trusted')}
                       />
                     </td>
+                    <td className="directory-role">
+                      <span aria-hidden="true">Доступ</span>
+                      <Switch
+                        checked={user.is_active}
+                        disabled={user.id === currentUserId || pendingUser !== null}
+                        locked={user.id === currentUserId}
+                        label={`Доступ разрешён: ${user.username}`}
+                        onChange={() => void toggle(user, 'is_active')}
+                      />
+                    </td>
                     <td className="directory-activity">
                       <span aria-hidden="true">Последний вход </span>{formatDate(user.last_login_at)}
                     </td>
@@ -142,7 +156,7 @@ function Switch(props: { checked: boolean; disabled?: boolean; locked?: boolean;
       aria-checked={props.checked}
       aria-label={props.label}
       disabled={props.disabled}
-      title={props.locked ? 'Нельзя снять права с себя' : undefined}
+      title={props.locked ? 'Нельзя изменить свои права и доступ' : undefined}
       onClick={props.onChange}
     />
   )

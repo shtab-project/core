@@ -15,15 +15,16 @@ async def main():
     try:
         for plugin_id in ("todo", "notes"):
             entry = CATALOG[plugin_id]
+
             async with UnitOfWork(get_session_factory()) as uow:
                 manager = PluginManager(uow, loader)
                 installed = await uow.plugins.get(plugin_id)
                 if installed:
                     if installed.version != entry.manifest.version:
                         raise RuntimeError(
-                            f"{plugin_id}: установлен {installed.version}, "
-                            f"нужен {entry.manifest.version}. "
-                            "Автоматическое обновление существующего плагина не выполняется."
+                            f"{plugin_id}: installed {installed.version}, "
+                            f"required {entry.manifest.version}. "
+                            "An existing plugin is not updated automatically."
                         )
                     if entry.migration_module:
                         process = await asyncio.create_subprocess_exec(
@@ -34,11 +35,11 @@ async def main():
                             "head",
                         )
                         if await process.wait():
-                            raise RuntimeError(f"{plugin_id}: миграция не выполнена")
-                    print(f"{plugin_id}: уже установлен", flush=True)
+                            raise RuntimeError(f"{plugin_id}: migration failed")
+                    print(f"{plugin_id}: already installed", flush=True)
                     continue
                 await manager.register(entry.to_plugin())
-                print(f"{plugin_id}: установлен {entry.manifest.version}", flush=True)
+                print(f"{plugin_id}: installed {entry.manifest.version}", flush=True)
     finally:
         await engine.dispose()
 

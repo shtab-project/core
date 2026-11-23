@@ -1,4 +1,4 @@
-"""Проверки на SQLite: запускать с --confcutdir tests/unit, без PostgreSQL и Redis."""
+"""SQLite checks: run with --confcutdir tests/unit, without PostgreSQL or Redis."""
 
 import os
 
@@ -25,6 +25,7 @@ async def session_factory():
 
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
+
     yield async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
     await engine.dispose()
 

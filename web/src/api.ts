@@ -12,6 +12,7 @@ export type User = {
   email: string | null
   is_admin: boolean
   is_trusted: boolean
+  is_active: boolean
   created_at: string
   last_login_at: string | null
 }
@@ -81,7 +82,7 @@ export const api = {
     }),
   me: () => request<Me>('/api/me'),
   users: () => request<User[]>('/api/users'),
-  updateUser: (id: string, roles: Partial<Pick<User, 'is_admin' | 'is_trusted'>>) =>
+  updateUser: (id: string, roles: Partial<Pick<User, 'is_admin' | 'is_trusted' | 'is_active'>>) =>
     request<User>(`/api/users/${id}`, { method: 'PATCH', body: JSON.stringify(roles) }),
   logout: () => request<{ logout_url: string | null }>('/api/auth/logout', { method: 'POST' }),
 }

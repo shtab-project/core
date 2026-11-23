@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy import func, select
@@ -9,11 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from shtab_core.models import User
 
 
+@dataclass
 class UserRepository:
-    """Работа с пользователями. Транзакцию завершает вызывающий код."""
+    """Users. The caller ends the transaction."""
 
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
+    session: AsyncSession
 
     async def get(self, user_id: uuid.UUID) -> User | None:
         return await self.session.get(User, user_id)
@@ -49,13 +50,20 @@ class UserRepository:
 
     async def count_admins(self) -> int:
         admin_count = await self.session.scalar(
-            select(func.count()).select_from(User).where(User.is_admin)
+            select(func.count()).select_from(User).where(User.is_admin, User.is_active)
         )
-        return admin_count if admin_count is not None else 0
+        return admin_count or 0
 
     async def update_roles(
-        self, user: User, *, is_admin: bool | None = None, is_trusted: bool | None = None
+        self,
+        user: User,
+        *,
+        is_admin: bool | None = None,
+        is_trusted: bool | None = None,
+        is_active: bool | None = None,
     ) -> User:
+        if is_active is not None:
+            user.is_active = is_active
         if is_admin is not None:
             user.is_admin = is_admin
         if is_trusted is not None:

@@ -23,20 +23,20 @@ async def main() -> None:
                 record = await session.scalar(
                     select(PluginRecord).where(PluginRecord.id == plugin_id)
                 )
-                if record is None:
+                if not record:
                     raise RuntimeError(
-                        f"Сначала установите {plugin_id} через раздел «Плагины»."
+                        f"Install {plugin_id} from the Plugins section first."
                     )
                 records[plugin_id] = record
             if check_only:
-                print("OK: notes и todo установлены")
+                print("OK: notes and todo are installed")
                 return
             manifests = {}
             for plugin_id in records:
                 path = Path("/app/core/plugins") / plugin_id / "manifest.json"
                 manifest = PluginIn.model_validate(json.loads(path.read_text()))
                 if manifest.id != plugin_id:
-                    raise ValueError(f"Неверный ID плагина: {path}")
+                    raise ValueError(f"Invalid plugin ID: {path}")
                 manifests[plugin_id] = manifest
             for plugin_id, record in records.items():
                 module = CATALOG[plugin_id].migration_module
@@ -49,7 +49,7 @@ async def main() -> None:
                 record.version = manifest.version
                 record.backend_entrypoint = manifest.backend_entrypoint
                 record.frontend = manifest.model_dump(mode="json")["frontend"]
-                print(f"{plugin_id}: обновлён до {manifest.version}")
+                print(f"{plugin_id}: updated to {manifest.version}")
     finally:
         await engine.dispose()
 

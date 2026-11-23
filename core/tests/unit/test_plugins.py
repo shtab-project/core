@@ -1,24 +1,20 @@
+from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy.exc import IntegrityError
 
+from shtab_core.exceptions import ConflictError, NotFoundError
+from shtab_core.manifest import Plugin, PluginFrontend, PluginMenuItem, PluginPage
 from shtab_core.models import PluginRecord
-from shtab_core.services.errors import ConflictError, NotFoundError
-from shtab_core.services.plugins import (
-    Plugin,
-    PluginFrontend,
-    PluginManager,
-    PluginMenuItem,
-    PluginPage,
-)
+from shtab_core.services.plugins import PluginManager
 from shtab_core.uow import UnitOfWork
 
 
 def manifest(frontend=True):
     return Plugin(
         id="tasks",
-        name="Задачи",
+        name="Tasks",
         version="1.0.0",
         url="https://github.com/example/tasks",
         backend_entrypoint="shtab_tasks.plugin:register",
@@ -26,7 +22,9 @@ def manifest(frontend=True):
             PluginFrontend(
                 entry="frontend/index.js",
                 pages=(PluginPage(path="/tasks", element="shtab-tasks"),),
-                menu_items=(PluginMenuItem(slot="sidebar.main", title="Задачи", path="/tasks"),),
+                menu_items=(
+                    PluginMenuItem(slot="sidebar.main", title="Tasks", path="/tasks"),
+                ),
             )
             if frontend
             else None
@@ -37,6 +35,7 @@ def manifest(frontend=True):
 @pytest.mark.parametrize("frontend", [True, False])
 async def test_register_persists_manifest_across_uow(session_factory, frontend):
     plugin = manifest(frontend)
+
     async with UnitOfWork(session_factory) as uow:
         record = await PluginManager(uow, AsyncMock()).register(plugin)
         assert record.id == plugin.id
@@ -49,8 +48,10 @@ async def test_register_persists_manifest_across_uow(session_factory, frontend):
         assert record.backend_entrypoint == plugin.backend_entrypoint
         assert await manager.list_all() == [record]
         if frontend:
-            assert record.frontend["pages"] == [{"path": "/tasks", "element": "shtab-tasks"}]
-            assert record.frontend["menu_items"][0]["slot"] == "sidebar.main"
+            assert record.frontend
+            stored: dict[str, Any] = record.frontend
+            assert stored["pages"] == [{"path": "/tasks", "element": "shtab-tasks"}]
+            assert stored["menu_items"][0]["slot"] == "sidebar.main"
         else:
             assert record.frontend is None
         await manager.unregister(plugin.id)
@@ -82,7 +83,11 @@ async def test_repository_never_flushes_or_commits(uow, monkeypatch):
     monkeypatch.setattr(session, "flush", flush)
     monkeypatch.setattr(session, "commit", commit)
     record = PluginRecord(
-        id="tasks", name="Tasks", version="1", url="url", backend_entrypoint="tasks:register"
+        id="tasks",
+        name="Tasks",
+        version="1",
+        url="url",
+        backend_entrypoint="tasks:register",
     )
     await uow.plugins.add(record)
     assert await uow.plugins.list_all() == []

@@ -7,6 +7,7 @@ import pytest
 from fastapi import APIRouter, FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.exc import IntegrityError
+from starlette.requests import Request
 
 from shtab_core.config import Paths
 from shtab_core.db import get_session_factory
@@ -21,15 +22,13 @@ from shtab_core.uow import UnitOfWork
 def test_backend_entrypoint_calls_plugin_register(monkeypatch):
     app = FastAPI()
     module = ModuleType("example_plugin")
-    module.register = Mock()
+    module.register = Mock()  # pyright: ignore[reportAttributeAccessIssue]
     monkeypatch.setitem(sys.modules, "example_plugin", module)
     load_backend(app, "example_plugin:register")
     module.register.assert_called_once_with(app)
 
 
 def test_loader_receives_current_application():
-    from starlette.requests import Request
-
     app = FastAPI()
     request = Request({"type": "http", "app": app})
     assert get_plugin_loader(request).app is app
@@ -40,7 +39,9 @@ def test_loader_receives_current_application():
 def local_plugin(tmp_path, monkeypatch):
     source = tmp_path / "example"
     source.mkdir()
-    (source / "pyproject.toml").write_text('[project]\nname = "example-plugin"\nversion = "1"')
+    (source / "pyproject.toml").write_text(
+        '[project]\nname = "example-plugin"\nversion = "1"'
+    )
     payload = {
         "id": "example",
         "name": "Example",
@@ -61,7 +62,7 @@ def local_plugin(tmp_path, monkeypatch):
 
         app.include_router(router)
 
-    module.register = register
+    module.register = register  # pyright: ignore[reportAttributeAccessIssue]
     monkeypatch.setitem(sys.modules, "example_plugin", module)
     return PluginIn.model_validate(payload).to_plugin()
 
@@ -82,13 +83,20 @@ async def test_local_install_commit_failure_removes_files_and_routes(
         await PluginManager(uow, loader).register(local_plugin)
     assert not loader.directory("example").exists()
     assert await uow.plugins.list_all() == []
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         assert (await client.get("/api/example")).status_code == 404
 
 
-async def test_sync_failure_removes_partial_install(tmp_path, monkeypatch, local_plugin):
+async def test_sync_failure_removes_partial_install(
+    tmp_path, monkeypatch, local_plugin
+):
     loader = PluginLoader(FastAPI(), Paths(workspace=tmp_path))
-    monkeypatch.setattr(loader, "_sync_workspace", AsyncMock(side_effect=RuntimeError("uv failed")))
+    monkeypatch.setattr(
+        loader, "_sync_workspace", AsyncMock(side_effect=RuntimeError("uv failed"))
+    )
     with pytest.raises(RuntimeError, match="uv failed"):
         await loader.install(local_plugin)
     assert not loader.directory("example").exists()
@@ -104,7 +112,9 @@ async def test_preinstalled_files_survive_failed_registration(
     loader = PluginLoader(FastAPI(), Paths(workspace=tmp_path))
     monkeypatch.setattr(loader, "_sync_workspace", AsyncMock())
     monkeypatch.setattr(
-        uow.plugins.session, "commit", AsyncMock(side_effect=RuntimeError("commit failed"))
+        uow.plugins.session,
+        "commit",
+        AsyncMock(side_effect=RuntimeError("commit failed")),
     )
     with pytest.raises(RuntimeError, match="commit failed"):
         await PluginManager(uow, loader).register(local_plugin)
@@ -130,12 +140,14 @@ async def test_startup_restores_registry_without_installing(
         monkeypatch.setattr(loader, "install", install)
         restarted.state.plugin_loader = loader
         restarted.dependency_overrides[get_session_factory] = lambda: session_factory
+
         async with restarted.router.lifespan_context(restarted):
             async with AsyncClient(
                 transport=ASGITransport(app=restarted), base_url="http://test"
             ) as client:
                 assert (await client.get("/api/example")).json() == {"ok": True}
                 assert "/api/example" in restarted.openapi()["paths"]
+
         install.assert_not_awaited()
 
 
@@ -151,6 +163,7 @@ async def test_missing_installed_files_fail_startup(session_factory, tmp_path):
                     backend_entrypoint="missing_plugin:register",
                 )
             )
+
     app = create_app()
     app.state.plugin_loader = PluginLoader(app, Paths(workspace=tmp_path))
     app.dependency_overrides[get_session_factory] = lambda: session_factory
@@ -159,7 +172,9 @@ async def test_missing_installed_files_fail_startup(session_factory, tmp_path):
             pytest.fail("Startup should fail when an installed plugin is missing")
 
 
-async def test_subprocess_runs_from_workspace_and_reports_its_error(tmp_path, monkeypatch):
+async def test_subprocess_runs_from_workspace_and_reports_its_error(
+    tmp_path, monkeypatch
+):
     process = AsyncMock()
     process.returncode = 1
     process.communicate.return_value = (b"", b"sync failed")

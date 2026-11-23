@@ -79,6 +79,7 @@
 .directory-self { vertical-align: 1px; margin-inline-start: 7px; padding: 1px 5px; }
 .directory-role > span, .directory-activity > span { display: none; }
 .directory-table .switch:not([aria-checked='true']) { background: var(--field-border); }
+.directory-table tr[data-inactive] .directory-identity { opacity: 0.55; }
 .directory-empty, .directory-error { margin: 0; padding: 18px 20px; border-top: 1px solid var(--border); }
 .directory-empty { color: var(--text-muted); }
 .directory-empty .button { margin-top: 0; }

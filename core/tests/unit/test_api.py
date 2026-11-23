@@ -1,4 +1,5 @@
 import secrets
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -9,20 +10,23 @@ from shtab_core.db import get_session_factory
 from shtab_core.dependencies import get_plugin_loader
 from shtab_core.main import app
 from shtab_core.oidc import get_oidc
+from shtab_core.routers import plugin_ui
 from shtab_core.sessions import get_sessions
 
 
 def plugin_payload():
     return {
         "id": "tasks",
-        "name": "Задачи",
+        "name": "Tasks",
         "version": "1.0.0",
         "url": "https://github.com/example/tasks",
         "backend_entrypoint": "shtab_tasks.plugin:register",
         "frontend": {
             "entry": "frontend/index.js",
             "pages": [{"path": "/tasks", "element": "shtab-tasks"}],
-            "menu_items": [{"slot": "sidebar.main", "title": "Задачи", "path": "/tasks"}],
+            "menu_items": [
+                {"slot": "sidebar.main", "title": "Tasks", "path": "/tasks"}
+            ],
         },
     }
 
@@ -48,7 +52,9 @@ class FakeOidc:
         self.claims = {"sub": "alice", "preferred_username": "alice"}
 
     async def authorize_redirect(self, request, redirect_uri):
-        return RedirectResponse(f"https://auth.example/authorize?redirect_uri={redirect_uri}")
+        return RedirectResponse(
+            f"https://auth.example/authorize?redirect_uri={redirect_uri}"
+        )
 
     async def authorize_access_token(self, request):
         return {"userinfo": self.claims}
@@ -69,8 +75,12 @@ async def api(session_factory):
     plugin_loader = AsyncMock()
     app.dependency_overrides[get_plugin_loader] = lambda: plugin_loader
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://shtab.localhost") as client:
+
+    async with AsyncClient(
+        transport=transport, base_url="http://shtab.localhost"
+    ) as client:
         yield client, oidc
+
     app.dependency_overrides.clear()
     app.dependency_overrides.update(previous)
 
@@ -86,11 +96,13 @@ async def test_login_setup_roles_and_logout(api):
     assert response.status_code == 303
     assert "HttpOnly" in response.headers["set-cookie"]
     assert (await client.get("/api/users")).status_code == 403
-    response = await client.post("/api/setup", json={"organization_name": "  Штаб  "})
+    response = await client.post("/api/setup", json={"organization_name": "  Shtab  "})
     assert response.status_code == 201
-    assert response.json()["name"] == "Штаб"
+    assert response.json()["name"] == "Shtab"
     assert (await client.get("/api/setup")).json()["initialized"] is True
-    assert (await client.post("/api/setup", json={"organization_name": "Other"})).status_code == 409
+    assert (
+        await client.post("/api/setup", json={"organization_name": "Other"})
+    ).status_code == 409
     me = (await client.get("/api/me")).json()
     user_id = me["user"]["id"]
     assert me["user"]["is_admin"] and me["user"]["is_trusted"]
@@ -101,10 +113,10 @@ async def test_login_setup_roles_and_logout(api):
     response = await client.patch(f"/api/users/{user_id}", json={"is_trusted": False})
     assert response.status_code == 200 and not response.json()["is_trusted"]
 
-    oidc.claims["name"] = "Алиса"
+    oidc.claims["name"] = "Alice"
     assert (await client.get("/api/auth/callback")).status_code == 303
     me = (await client.get("/api/me")).json()["user"]
-    assert me["id"] == user_id and me["name"] == "Алиса" and me["is_admin"]
+    assert me["id"] == user_id and me["name"] == "Alice" and me["is_admin"]
     assert not me["is_trusted"]
     assert (await client.post("/api/auth/logout")).status_code == 200
     assert (await client.get("/api/me")).status_code == 401
@@ -115,14 +127,14 @@ async def test_callback_missing_subject_is_bad_request(api):
     oidc.claims = {}
     response = await client.get("/api/auth/callback")
     assert response.status_code == 400
-    assert response.json()["detail"] == "В ответе Authentik нет sub"
+    assert response.json()["detail"] == "Authentik response has no sub"
     assert (await client.get("/api/me")).status_code == 401
 
 
 def test_openapi_dependency_graph():
     schema = app.openapi()
     assert "/api/setup" in schema["paths"]
-    # Внутренние параметры Depends не должны становиться параметрами запроса.
+    # Internal Depends parameters must not become query parameters.
     assert "parameters" not in schema["paths"]["/api/users"]["get"]
 
 
@@ -136,7 +148,9 @@ def test_openapi_dependency_graph():
         ("DELETE", "/api/plugins/tasks"),
     ],
 )
-async def test_plugin_routes_require_admin(api, signed_in, expected_status, method, path):
+async def test_plugin_routes_require_admin(
+    api, signed_in, expected_status, method, path
+):
     client, _ = api
     if signed_in:
         assert (await client.get("/api/auth/callback")).status_code == 303
@@ -144,7 +158,7 @@ async def test_plugin_routes_require_admin(api, signed_in, expected_status, meth
         method,
         path,
         json=plugin_payload() if method == "POST" else None,
-        # Клиентские флаги не заменяют роль из БД.
+        # Client-sent flags don't override the role from the DB.
         headers={"X-Is-Admin": "true"},
         params={"is_admin": "true"},
     )
@@ -180,6 +194,23 @@ async def test_admin_plugin_lifecycle_and_user_cannot_delete(api):
     assert (await client.get("/api/plugins")).json() == []
 
 
+async def test_catalog_install_errors_preserve_status_and_detail(api):
+    client, _ = api
+    await client.get("/api/auth/callback")
+    await client.post("/api/setup", json={"organization_name": "Org"})
+    path = "/api/plugins/catalog"
+
+    missing = await client.post(f"{path}/missing/install")
+    assert missing.status_code == 404
+    assert missing.json() == {"detail": "Plugin not found in the catalog"}
+
+    loader = app.dependency_overrides[get_plugin_loader]()
+    loader.install.side_effect = OSError("Installation failed")
+    failed = await client.post(f"{path}/todo/install")
+    assert failed.status_code == 502
+    assert failed.json() == {"detail": "Failed to install the plugin. Try again."}
+
+
 @pytest.mark.parametrize(
     "changes",
     [
@@ -208,11 +239,9 @@ def test_plugin_routes_openapi():
     assert paths["/api/plugins"]["post"]["requestBody"]["required"]
 
 
-async def test_plugin_ui_for_regular_user_and_private_assets(api, tmp_path, monkeypatch):
-    from types import SimpleNamespace
-
-    from shtab_core.routers import plugin_ui
-
+async def test_plugin_ui_for_regular_user_and_private_assets(
+    api, tmp_path, monkeypatch
+):
     monkeypatch.setattr(plugin_ui, "paths", SimpleNamespace(plugins=tmp_path))
     frontend = tmp_path / "tasks" / "frontend"
     frontend.mkdir(parents=True)
@@ -222,7 +251,9 @@ async def test_plugin_ui_for_regular_user_and_private_assets(api, tmp_path, monk
     (tmp_path / "tasks" / "secret.json").write_text('{"secret": true}')
     client, oidc = api
     assert (await client.get("/api/plugin-ui")).status_code == 401
-    assert (await client.get("/api/plugin-assets/tasks/frontend/index.js")).status_code == 401
+    assert (
+        await client.get("/api/plugin-assets/tasks/frontend/index.js")
+    ).status_code == 401
     await client.get("/api/auth/callback")
     await client.post("/api/setup", json={"organization_name": "Org"})
     assert (await client.post("/api/plugins", json=plugin_payload())).status_code == 201
@@ -238,6 +269,8 @@ async def test_plugin_ui_for_regular_user_and_private_assets(api, tmp_path, monk
     response = await client.get(entry)
     assert response.status_code == 200 and response.text == source
     assert "javascript" in response.headers["content-type"]
-    assert (await client.get("/api/plugin-assets/tasks/frontend/chunk.js")).status_code == 200
+    assert (
+        await client.get("/api/plugin-assets/tasks/frontend/chunk.js")
+    ).status_code == 200
     for path in ["secret.json", "frontend/%2e%2e%2fsecret.json", "frontend/missing.js"]:
         assert (await client.get(f"/api/plugin-assets/tasks/{path}")).status_code == 404
